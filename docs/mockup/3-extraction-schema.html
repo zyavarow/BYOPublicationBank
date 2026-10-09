@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Setup — Extraction Schema</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=Work+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F6F4EE}
+a{color:inherit;text-decoration:none}
+input::placeholder,textarea::placeholder{color:#9A968C}
+</style>
+</helmet>
+<div style="width:1440px;height:1180px;box-sizing:border-box;background:#F6F4EE;font-family:'Work Sans',sans-serif;color:#1E211F;display:flex;flex-direction:column;overflow:hidden;">
+
+  <div style="height:68px;flex:0 0 auto;background:#FFFFFF;border-bottom:1px solid #DEDBD1;display:flex;align-items:center;justify-content:space-between;padding:0 48px;box-sizing:border-box;">
+    <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;">Research Portal Setup Kit</div>
+    <a href="#" style="font-size:14px;color:#6B6F66;font-weight:500;">Save &amp; exit</a>
+  </div>
+
+  <div style="flex:1;padding:30px 48px 22px;box-sizing:border-box;display:flex;flex-direction:column;min-height:0;">
+
+    <div style="display:flex;align-items:center;margin-bottom:18px;flex:0 0 auto;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:#2B6E5E;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;">✓</div>
+        <span style="font-size:14px;font-weight:600;color:#2B6E5E;">Organization &amp; Branding</span>
+      </div>
+      <div style="width:56px;height:2px;background:#2B6E5E;margin:0 16px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:#2B6E5E;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;">✓</div>
+        <span style="font-size:14px;font-weight:600;color:#2B6E5E;">Publication Bank</span>
+      </div>
+      <div style="width:56px;height:2px;background:#2B6E5E;margin:0 16px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:#2B6E5E;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">3</div>
+        <span style="font-size:14px;font-weight:600;color:#1E211F;">Extraction Schema</span>
+      </div>
+      <div style="width:56px;height:2px;background:#DEDBD1;margin:0 16px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;border:2px solid #DEDBD1;color:#9A968C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;box-sizing:border-box;">4</div>
+        <span style="font-size:14px;font-weight:600;color:#9A968C;">Review &amp; Launch</span>
+      </div>
+    </div>
+
+    <h1 style="margin:0 0 4px;font-family:'Fraunces',serif;font-size:26px;font-weight:600;flex:0 0 auto;">What should get pulled out of every paper?</h1>
+    <p style="margin:0 0 18px;font-size:13px;color:#6B6F66;max-width:820px;line-height:1.5;flex:0 0 auto;">These fields get extracted from each paper at index time. The same fields power your search filters <em>and</em> the citation detail panel — one decision, used twice.</p>
+
+    <div style="flex:1;display:flex;gap:22px;min-height:0;">
+
+      <div style="width:380px;flex:0 0 auto;background:#FFFFFF;border:1px solid #DEDBD1;border-radius:16px;padding:22px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-height:0;">
+        <div style="font-size:14px;font-weight:600;">Teach it about this project</div>
+        <div style="border:1.5px dashed #C7C3B6;border-radius:12px;padding:18px;text-align:center;background:#FCFBF8;">
+          <div style="font-size:12px;color:#6B6F66;font-weight:500;">Drag call transcripts or notes here</div>
+          <div style="font-size:11px;color:#9A968C;margin-top:3px;">Transcripts, .txt, .docx, .pdf</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #EFECE2;border-radius:9px;">
+            <span style="font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Onboarding call — Sept 18.txt</span>
+            <span style="font-size:10px;font-weight:600;color:#3F7D5C;background:#E4EFE7;padding:3px 8px;border-radius:10px;flex:0 0 auto;">Processed</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #EFECE2;border-radius:9px;">
+            <span style="font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Organization intake notes.docx</span>
+            <span style="font-size:10px;font-weight:600;color:#3F7D5C;background:#E4EFE7;padding:3px 8px;border-radius:10px;flex:0 0 auto;">Processed</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #EFECE2;border-radius:9px;">
+            <span style="font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Follow-up call — Sept 20.txt</span>
+            <span style="font-size:10px;font-weight:600;color:#3F7D5C;background:#E4EFE7;padding:3px 8px;border-radius:10px;flex:0 0 auto;">Processed</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#4A4E45;margin-bottom:6px;">Anything else worth adding?</label>
+          <textarea style="width:100%;box-sizing:border-box;height:74px;padding:10px 12px;border:1px solid #DEDBD1;border-radius:10px;font-size:12px;font-family:'Work Sans',sans-serif;color:#1E211F;background:#FCFBF8;resize:none;">Maria mentioned two of their key papers disagree on efficacy — turned out to be different antibodies used in the assay.</textarea>
+        </div>
+
+        <div style="flex:1;"></div>
+        <div style="border:1.5px solid #2B6E5E;color:#2B6E5E;font-size:13px;font-weight:600;padding:10px 0;border-radius:10px;text-align:center;">Regenerate proposal</div>
+      </div>
+
+      <div style="flex:1;background:#FFFFFF;border:1px solid #DEDBD1;border-radius:16px;padding:22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;min-height:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:14px;font-weight:600;">Proposed extraction schema</div>
+          <span style="font-size:11px;font-weight:600;color:#1F4F43;background:#E1EEEA;padding:4px 10px;border-radius:11px;">From 3 transcripts + 142 papers</span>
+        </div>
+
+        <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Study type" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Enum</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">Cell · Animal · Patient · Computational</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Mutations studied" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Tag list</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">e.g. R155H, R191Q</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Model system" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Enum</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">Fly · Worm · Mouse · Human cell line · N/A</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Techniques" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Tag list</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">Western blot, qPCR, WGS, IHC…</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Sample source" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Text</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">e.g. patient fibroblasts, muscle biopsy</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1.5px solid #B5592E;background:#FBF3EE;border-radius:10px;padding:12px 14px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="flex:1.1;">
+                <input type="text" value="Reagents (incl. catalog #)" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;color:#1E211F;">
+              </div>
+              <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Text</span>
+              <div style="flex:1.6;font-size:12px;color:#9A968C;">e.g. anti-VCP, ab11433 (Abcam)</div>
+              <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+            </div>
+            <div style="font-size:11px;color:#8A4A2A;margin-top:8px;line-height:1.5;">Why this field: two papers can disagree because they used a different antibody — this lets you trace it back.</div>
+          </div>
+
+          <div style="border:1px solid #EFECE2;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1.1;">
+              <input type="text" value="Publication year" style="width:100%;box-sizing:border-box;font-size:13px;font-weight:600;border:none;background:transparent;padding:0;">
+            </div>
+            <span style="font-size:10px;font-weight:600;color:#6B6F66;background:#EFECE2;padding:3px 9px;border-radius:9px;flex:0 0 auto;">Number</span>
+            <div style="flex:1.6;font-size:12px;color:#9A968C;">e.g. 2024</div>
+            <span style="font-size:14px;color:#C7C3B6;flex:0 0 auto;cursor:pointer;">✕</span>
+          </div>
+
+          <div style="border:1.5px dashed #C7C3B6;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:600;color:#8A8679;">+ Add custom field</div>
+
+        </div>
+
+        <a href="Step4-Review.dc.html" style="align-self:flex-end;background:#2B6E5E;color:#fff;font-size:14px;font-weight:600;padding:13px 26px;border-radius:10px;flex:0 0 auto;">Approve schema — Continue →</a>
+      </div>
+
+    </div>
+
+    <div style="flex:0 0 auto;display:flex;gap:18px;margin-top:18px;">
+
+      <div style="flex:1;background:#FFFFFF;border:1px solid #DEDBD1;border-radius:16px;padding:22px 24px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Default answer format</div>
+        <div style="font-size:13px;color:#6B6F66;margin-bottom:14px;">Members can switch anytime — this sets what they see first. Both cite every claim.</div>
+        <div style="display:flex;gap:14px;">
+          <div style="flex:1;border:2px solid #2B6E5E;background:#F2F8F6;border-radius:12px;padding:15px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:#1F4F43;">Plain-language summary</div>
+              <div style="width:16px;height:16px;border-radius:50%;background:#2B6E5E;flex:0 0 auto;"></div>
+            </div>
+            <div style="font-size:12px;color:#3E5F55;line-height:1.5;">Written for patients &amp; caregivers — minimal jargon, but every claim is still cited.</div>
+          </div>
+          <div style="flex:1;border:1px solid #DEDBD1;border-radius:12px;padding:16px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Technical summary</div>
+            <div style="font-size:12px;color:#6B6F66;line-height:1.5;">More terminology, still fully cited — for clinical &amp; scientific staff.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1;background:#FFFFFF;border:1px solid #DEDBD1;border-radius:16px;padding:22px 24px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Search depth</div>
+        <div style="font-size:13px;color:#6B6F66;margin-bottom:14px;">How much of the bank one search reads through — deeper is slower and costs more per query.</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button onClick="{{pickLow}}" style="{{lowStyle}}">Low</button>
+          <button onClick="{{pickMedium}}" style="{{mediumStyle}}">Medium</button>
+          <button onClick="{{pickHigh}}" style="{{highStyle}}">High</button>
+        </div>
+        <div style="display:flex;gap:22px;">
+          <div>
+            <div style="font-size:10px;color:#9A968C;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Papers scanned</div>
+            <div style="font-size:19px;font-weight:600;font-family:'Fraunces',serif;margin-top:2px;">{{depthPapers}}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#9A968C;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Est. tokens</div>
+            <div style="font-size:19px;font-weight:600;font-family:'Fraunces',serif;margin-top:2px;">{{depthTokens}}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#9A968C;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;">Est. cost / search</div>
+            <div style="font-size:19px;font-weight:600;font-family:'Fraunces',serif;margin-top:2px;color:#B5592E;">{{depthCost}}</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="flex:0 0 auto;padding-top:12px;">
+      <a href="Step2-Publications.dc.html" style="font-size:14px;font-weight:600;color:#6B6F66;">← Back</a>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var levels = {
+      low: { papers: '15', tokens: '6,200', cost: '$0.03' },
+      medium: { papers: '50', tokens: '22,000', cost: '$0.11' },
+      high: { papers: '142 (full bank)', tokens: '64,000', cost: '$0.32' }
+    };
+    var depth = (this.state && this.state.depth) || 'medium';
+    var current = levels[depth];
+    var self = this;
+    var activeStyle = 'flex:1;background:#2B6E5E;color:#fff;border:1px solid #2B6E5E;font-size:13px;font-weight:600;padding:10px 0;border-radius:8px;cursor:pointer;';
+    var inactiveStyle = 'flex:1;background:#FCFBF8;color:#6B6F66;border:1px solid #DEDBD1;font-size:13px;font-weight:600;padding:10px 0;border-radius:8px;cursor:pointer;';
+    return {
+      pickLow: function(){ self.setState({ depth: 'low' }); },
+      pickMedium: function(){ self.setState({ depth: 'medium' }); },
+      pickHigh: function(){ self.setState({ depth: 'high' }); },
+      lowStyle: depth === 'low' ? activeStyle : inactiveStyle,
+      mediumStyle: depth === 'medium' ? activeStyle : inactiveStyle,
+      highStyle: depth === 'high' ? activeStyle : inactiveStyle,
+      depthPapers: current.papers,
+      depthTokens: current.tokens,
+      depthCost: current.cost
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Papers, extracted text, and databases never go in git
+data/
+!data/raw/.gitkeep
+*.db
+*.sqlite
+# Secrets
+.env
+# Large downloads, other people's tools, Office temp files
+OneDrive_*.zip
+SkyWhal3/
+~$*
+# Python
+__pycache__/
+.venv/
+venv/
+*.pyc

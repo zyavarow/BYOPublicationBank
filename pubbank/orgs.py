@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ORGS_DIR = ROOT / "orgs"
 
 DEFAULTS = {
-    "name": "", "description": "", "website": "", "topic_terms": "",
+    "name": "", "description": "", "website": "", "topic_terms": "", "answer_format": "plain", "search_depth": "standard", "schema_approved": "",
     "primary": "#2B6E5E", "accent": "#B5592E", "logo": "", "brand_guide": "", "db_slug": "",
 }
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")

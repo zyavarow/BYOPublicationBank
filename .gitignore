@@ -20,3 +20,4 @@ orgs/*/config.toml
 orgs/*/logo.*
 orgs/*/brand_guide.*
 orgs/*/uploads/
+orgs/*/proposal.json

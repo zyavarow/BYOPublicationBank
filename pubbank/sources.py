@@ -450,10 +450,10 @@ def running_job(org_id, kind):
         return next((j["id"] for j in JOBS.values() if j["org_id"] == org_id and j["kind"] == kind and not j["finished"]), None)
 
 
-def new_job(kind, label, org_id=None):
+def new_job(kind, label, org_id=None, hint=""):
     jid = hashlib.sha1(f"{kind}{label}{time.time()}".encode()).hexdigest()[:10]
     with _lock:
-        JOBS[jid] = {"id": jid, "kind": kind, "label": label, "org_id": org_id, "stage": "starting", "done": 0, "total": 0, "finished": False,
+        JOBS[jid] = {"id": jid, "kind": kind, "label": label, "org_id": org_id, "hint": hint, "stage": "starting", "done": 0, "total": 0, "finished": False,
                      "error": None, "result": None, "started": time.time()}
     return jid
 

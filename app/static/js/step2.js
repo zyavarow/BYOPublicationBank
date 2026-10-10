@@ -110,43 +110,27 @@
     $("jobFill").style.width = "0";
     buttons.forEach((b) => (b.disabled = false));
   }
-  async function poll(job, buttons) {
-    try {
-      const r = await fetch(`/org/${folder}/bank/jobs/${job}`);
-      const j = await r.json();
-      if (j.error && !j.finished) throw new Error(j.error);
-      $("jobStage").textContent = j.stage;
-      $("jobNums").textContent = j.total ? `${j.done} of ${j.total}` : "";
-      $("jobFill").style.width = j.finished ? "100%" : Math.max(4, j.total ? (100 * j.done) / j.total : 4) + "%";
-      if (!j.finished) { setTimeout(() => poll(job, buttons), 1000); return; }
-      if (j.error) { fail(j.error, buttons); return; }
-      const x = j.result;
-      if (x.kind === "pdf") {
-        const bits = [`${x.added} new PDF${x.added === 1 ? "" : "s"} read. The bank now holds ${x.in_bank} papers.`];
-        if (x.duplicate) bits.push(`${x.duplicate} duplicate copies are set aside.`);
-        if (x.ocr) bits.push(`${x.ocr} scanned files needing text recognition are set aside.`);
-        if (x.setaside) bits.push(`${x.setaside} other items are set aside (see the list for the reason).`);
-        if (x.failed) bits.push(`${x.failed} files could not be read.`);
-        $("jobResult").textContent = bits.join(" ");
-        const more = document.createElement("a");
-        more.href = location.pathname; more.textContent = " Refresh the list →"; more.className = "reload";
-        $("jobResult").appendChild(more);
-        buttons.forEach((b) => (b.disabled = false));
-        return;
-      }
-      const lines = [`Added ${x.added} paper${x.added === 1 ? "" : "s"}: ${x.full_text} with full text, ${x.abstract_only} abstract only, ${x.citation_only} citation only.`];
+  function poll(job, buttons) {
+    watchJob(folder, job, { onFail: (m) => fail(m, buttons), onDone: (x) => done(x, buttons) });
+  }
+  function done(x, buttons) {
+    let lines;
+    if (x.kind === "pdf") {
+      lines = [`${x.added} new PDF${x.added === 1 ? "" : "s"} read. The bank now holds ${x.in_bank} papers.`];
+      if (x.duplicate) lines.push(`${x.duplicate} duplicate copies are set aside.`);
+      if (x.ocr) lines.push(`${x.ocr} scanned files needing text recognition are set aside.`);
+      if (x.setaside) lines.push(`${x.setaside} other items are set aside (see the list for the reason).`);
+      if (x.failed) lines.push(`${x.failed} files could not be read.`);
+    } else {
+      lines = [`Added ${x.added} paper${x.added === 1 ? "" : "s"}: ${x.full_text} with full text, ${x.abstract_only} abstract only, ${x.citation_only} citation only.`];
       if (x.already) lines.push(`${x.already} already in the bank (skipped).`);
       if (x.unmatched) lines.push(`${x.unmatched} reference${x.unmatched === 1 ? " was" : "s were"} not found in PubMed and kept as plain citations.`);
       if (x.not_in_pubmed && x.not_in_pubmed.length) lines.push("Not added: " + x.not_in_pubmed.slice(0, 8).join("; ") + (x.not_in_pubmed.length > 8 ? "…" : ""));
-      $("jobResult").textContent = lines.join(" ");
-      const more = document.createElement("a");
-      more.href = location.pathname;
-      more.textContent = " Refresh the list →";
-      more.className = "reload";
-      $("jobResult").appendChild(more);
-      buttons.forEach((b) => (b.disabled = false));
-    } catch (err) {
-      fail(err.message, buttons);
     }
+    $("jobResult").textContent = lines.join(" ");
+    const more = document.createElement("a");
+    more.href = location.pathname; more.textContent = " Refresh the list →"; more.className = "reload";
+    $("jobResult").appendChild(more);
+    buttons.forEach((b) => (b.disabled = false));
   }
 })();

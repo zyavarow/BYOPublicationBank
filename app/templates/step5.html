@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — Review &amp; Launch{% endblock %}
+{% block body %}
+{{ steps(org, 5) }}
+<div id="launchRoot" data-folder="{{ org.folder }}">
+<h1>Review before you launch</h1>
+<p class="lede">Everything below can be changed later. Check the summary, choose how answers should look by default, and see what reading the whole library will cost.</p>
+<div class="flash err" id="launchErr" hidden></div>
+
+<div class="card stack" style="max-width:900px">
+  <div class="logo-row"><div class="avatar" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</div>
+    <div><h2 style="margin:0">{{ org.name }}</h2><div class="hint" style="margin:0">{{ org.description }}</div></div></div>
+  <div class="sumgrid">
+    <div class="sumbox"><div class="lab">Publication bank</div>
+      <div class="big2">{{ bank.inbank + bank.abstract }} <small>papers in the bank</small></div>
+      <div class="hint">{{ bank.total }} received{% if bank.abstract %} · {{ bank.abstract }} abstract only{% endif %} · {{ bank.total - bank.inbank - bank.abstract }} set aside.
+        <a class="lnk" href="/org/{{ org.folder }}/step/2">Change</a></div></div>
+    <div class="sumbox"><div class="lab">Extraction schema</div>
+      {% if view %}<div class="big2">{{ fields.standard + fields.customized + fields.custom }} <small>fields</small></div>
+      <div class="hint">{{ fields.standard }} standard · {{ fields.customized }} customized · {{ fields.custom }} added. {% if approved %}Approved.{% else %}<strong style="color:var(--accent)">Not approved yet.</strong>{% endif %}
+        <a class="lnk" href="/org/{{ org.folder }}/step/3">Change</a></div>
+      {% else %}<div class="hint">No schema yet. <a class="lnk" href="/org/{{ org.folder }}/step/3">Set it up</a></div>{% endif %}</div>
+    <div class="sumbox"><div class="lab">Sample check</div>
+      {% if score and score.overall.reviewed %}<div class="big2">{{ score.overall.pct }}% <small>correct</small></div><div class="hint">{{ score.overall.reviewed }} answers marked. <a class="lnk" href="/org/{{ org.folder }}/step/4">Open</a></div>
+      {% else %}<div class="hint">Not done. A 15-paper check is recommended before reading everything. <a class="lnk" href="/org/{{ org.folder }}/step/4">Check a sample</a></div>{% endif %}</div>
+  </div>
+</div>
+
+<div class="card stack" style="max-width:900px;margin-top:20px">
+  <h2>Default answer format</h2>
+  <p class="plain" style="margin:0">Members can switch anytime; this sets what they see first. Both cite every claim.</p>
+  <div class="row">
+    <label class="optcard"><input type="radio" name="fmt" value="plain" {{ 'checked' if org.answer_format != 'technical' }}><div><strong>Plain-language summary</strong><div class="pdesc">Written for patients and caregivers: minimal jargon, every claim still cited.</div></div></label>
+    <label class="optcard"><input type="radio" name="fmt" value="technical" {{ 'checked' if org.answer_format == 'technical' }}><div><strong>Technical summary</strong><div class="pdesc">More terminology, still fully cited, for clinical and scientific staff.</div></div></label>
+  </div>
+  <h2 style="margin-top:8px">Search depth</h2>
+  <p class="plain" style="margin:0">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later.</p>
+  <div class="row">
+    {% for d in depths %}<label class="optcard"><input type="radio" name="depth" value="{{ d.key }}" {{ 'checked' if org.search_depth == d.key }}><div><strong>{{ d.label }}</strong> <span class="chip">≈ ${{ '%.2f'|format(d.cost) }} per search</span><div class="pdesc">{{ d.text }}</div></div></label>{% endfor %}
+  </div>
+  <div class="filenote" id="defNote"></div>
+</div>
+
+<div class="card stack" style="max-width:900px;margin-top:20px">
+  <h2>Read the whole library</h2>
+  <p class="plain" style="margin:0">Every paper in the bank is read once with the schema above. Work out the price first; nothing is read or charged by this button.</p>
+  <div><button type="button" class="btn small line" id="priceBtn" {{ 'disabled' if not view }}>Work out the price</button> <span class="filenote" id="priceNote"></span></div>
+  <div class="inputbox" id="priceBox" hidden>
+    <table class="stbl" id="priceTbl"></table>
+    <div class="hint" id="priceHint"></div>
+  </div>
+  <div><button type="button" class="btn" disabled>Start reading the library</button>
+    <span class="filenote" style="margin-left:10px">The full-library reader (with the half-price Batch service) is the next piece to be built, so this is switched off for now.</span></div>
+</div>
+</div>
+
+<div class="footer">
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/4">← Back</a>
+  <span></span>
+</div>
+<script>
+(function () {
+  const folder = document.getElementById("launchRoot").dataset.folder;
+  const $ = (id) => document.getElementById(id);
+  const save = async () => {
+    const body = new URLSearchParams({ answer_format: document.querySelector("input[name=fmt]:checked").value, search_depth: document.querySelector("input[name=depth]:checked").value });
+    const r = await fetch(`/org/${folder}/schema/defaults`, { method: "POST", body });
+    $("defNote").textContent = r.ok ? "Saved." : "Could not save.";
+  };
+  for (const r of document.querySelectorAll("input[name=fmt], input[name=depth]")) r.addEventListener("change", save);
+  $("priceBtn").addEventListener("click", async () => {
+    $("priceBtn").disabled = true; $("priceNote").textContent = "Counting… this takes up to a minute for a large library.";
+    const r = await fetch(`/org/${folder}/launch/estimate`, { method: "POST" });
+    const d = await r.json();
+    $("priceBtn").disabled = false;
+    if (!r.ok) { $("priceNote").textContent = d.error; return; }
+    $("priceNote").textContent = "";
+    $("priceBox").hidden = false;
+    $("priceTbl").innerHTML = `<tr><th>${d.papers} papers · ${d.requests} reading requests</th><th>Price</th><th>Time</th></tr>` +
+      `<tr><td>Standard service</td><td>about $${d.expected.toFixed(0)} (at most $${d.high.toFixed(0)})</td><td>about ${d.hours} hours</td></tr>` +
+      `<tr><td>Batch service (half price)</td><td>about $${(d.expected / 2).toFixed(0)} (at most $${(d.high / 2).toFixed(0)})</td><td>results within a day, often much sooner</td></tr>`;
+    $("priceHint").textContent = "Estimated from the size of your papers. It assumes every paper needs all reading passes, so it leans high. A spending limit will be set before anything runs.";
+  });
+})();
+</script>
+{% endblock %}

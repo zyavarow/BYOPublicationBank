@@ -43,20 +43,17 @@
     $("jobResult").textContent = msg;
     $("aiConfirm").checked = false;
   }
-  async function poll(job) {
-    const r = await fetch(`/org/${folder}/bank/jobs/${job}`);
-    const j = await r.json();
-    $("jobStage").textContent = j.stage;
-    $("jobNums").textContent = j.total ? `${j.done} of ${j.total}` : "";
-    $("jobFill").style.width = j.finished ? "100%" : Math.max(4, j.total ? (100 * j.done) / j.total : 4) + "%";
-    if (!j.finished) { setTimeout(() => poll(job), 1500); return; }
-    if (j.error) return fail(j.error);
-    const x = j.result;
-    $("jobResult").textContent = `Checked ${x.checked} papers for $${x.cost.toFixed(2)}: ${x.off_topic} off-topic, ${x.borderline} worth a look.` +
-      (x.errors ? ` ${x.errors} could not be checked.` : "") + (x.stopped_at_cap ? " Stopped early at the cost limit." : "");
-    const more = document.createElement("a");
-    more.href = "?g=offtopic"; more.textContent = " Review them →"; more.className = "reload";
-    $("jobResult").appendChild(more);
+  function poll(job) {
+    watchJob(folder, job, {
+      onFail: fail,
+      onDone: (x) => {
+        $("jobResult").textContent = `Checked ${x.checked} papers for $${x.cost.toFixed(2)}: ${x.off_topic} off-topic, ${x.borderline} worth a look.` +
+          (x.errors ? ` ${x.errors} could not be checked.` : "") + (x.stopped_at_cap ? " Stopped early at the cost limit." : "");
+        const more = document.createElement("a");
+        more.href = "?g=offtopic"; more.textContent = " Review them →"; more.className = "reload";
+        $("jobResult").appendChild(more);
+      },
+    });
   }
 
   // Keep / Exclude buttons (clicking the chosen one again clears it)

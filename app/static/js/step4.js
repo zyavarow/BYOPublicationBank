@@ -29,19 +29,14 @@
 
   // running
   function watch(job) {
-    const tick = async () => {
-      const j = await (await fetch(`/org/${folder}/bank/jobs/${job}`)).json();
-      $("jobStage").textContent = j.stage;
-      $("jobNums").textContent = j.total ? `${j.done} of ${j.total}` : "";
-      $("jobFill").style.width = j.finished ? "100%" : Math.max(4, j.total ? (100 * j.done) / j.total : 4) + "%";
-      if (!j.finished) return setTimeout(tick, 2000);
-      if (j.error) { $("jobResult").textContent = j.error; return; }
-      const x = j.result;
-      $("jobResult").textContent = `Read ${x.done} papers for $${x.cost.toFixed(2)}.` + (x.failed ? ` ${x.failed} could not be read.` : "") +
-        (x.stopped_at_cap ? " Stopped early at the cost limit." : "");
-      setTimeout(() => location.reload(), 1200);
-    };
-    tick();
+    watchJob(folder, job, {
+      onFail: (m) => { $("jobResult").textContent = m; },
+      onDone: (x) => {
+        $("jobResult").textContent = `Read ${x.done} papers for $${x.cost.toFixed(2)}.` + (x.failed ? ` ${x.failed} could not be read.` : "") +
+          (x.stopped_at_cap ? " Stopped early at the cost limit." : "");
+        setTimeout(() => location.reload(), 1200);
+      },
+    });
   }
   const run = $("runBtn");
   if (run) {

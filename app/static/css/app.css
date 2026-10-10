@@ -236,3 +236,43 @@ blockquote cite { display: block; font-style: normal; font-size: 11px; color: va
 .stbl td { padding: 4px 0; border-top: 1px solid var(--line-soft); } .stbl td:nth-child(n+2), .stbl th:nth-child(n+2) { text-align: right; }
 .scorebtns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 @media (max-width: 1100px) { .review4 { grid-template-columns: 1fr; } .plist, .score { position: static; max-height: none; } }
+
+/* step 3: extraction schema */
+.uplist { display: flex; flex-direction: column; gap: 6px; }
+.upitem { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--line-soft); border-radius: 10px; font-size: 13px; }
+.upitem span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.x { border: 0; background: none; color: var(--faint); font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 6px; } .x:hover { background: var(--accent-bg); color: var(--accent); }
+.chip { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: #ECEAE2; padding: 2px 9px; border-radius: 10px; }
+.chip.o { background: var(--ok-bg); color: var(--primary); font-weight: 500; } .chip.mine { background: var(--accent-bg); color: var(--accent); }
+.fcard { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.fcard.auto { background: var(--field); }
+.fhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; } .fhead .x { margin-left: auto; }
+.fwhy { font-size: 12.5px; color: var(--muted); line-height: 1.45; } .fex { font-size: 12px; color: var(--faint); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.fdet summary, .addcard summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--primary); }
+.addcard { padding: 16px 18px; }
+.fform { margin-top: 12px; } .fform textarea, .fform input[type=text] { font-size: 12.5px; margin-top: 4px; }
+.pitemrow { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line-soft); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.pitemrow input { margin-top: 3px; } .pdesc { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 3px; font-weight: 400; }
+.optcard { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--field); font-size: 13px; }
+.optcard:has(input:checked) { border-color: var(--primary); background: var(--ok-bg); } .optcard input { margin-top: 3px; }
+
+/* progress bar with unknown length: a moving stripe so it never looks stalled */
+.bar.indet .fill { width: 35% !important; animation: slide 1.3s ease-in-out infinite alternate; }
+@keyframes slide { from { margin-left: 0; } to { margin-left: 65%; } }
+
+/* schema page: sections, standard vs customized, editable proposal */
+.sechead { margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--label); }
+.chip.std { background: #E6ECF5; color: #3B5B8C; } .chip.cust { background: var(--warn-bg); color: var(--warn); }
+.warnnote { font-size: 12px; background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 8px 10px; line-height: 1.45; }
+.lab.sm { font-size: 12px; margin-top: 8px; } .lab.sm textarea, .lab.sm input, .lab.sm select, .pitemrow textarea { margin-top: 4px; font-size: 12.5px; }
+.pitemrow textarea { width: 100%; margin-top: 6px; }
+.gtbl { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; } .gtbl th { text-align: left; color: var(--faint); font-weight: 600; padding: 3px 4px; }
+.gtbl td { padding: 3px 4px; } .gtbl input, .gtbl select { padding: 6px 8px; font-size: 12px; }
+@media (max-width: 760px) { .gtbl { display: block; overflow-x: auto; } }
+
+/* step 5 */
+.sumgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.sumbox { border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; background: var(--field); }
+.big2 { font-family: var(--serif); font-size: 26px; font-weight: 600; } .big2 small { font-family: var(--sans); font-size: 12px; color: var(--faint); font-weight: 400; }
+@media (max-width: 760px) { .sumgrid { grid-template-columns: 1fr; } }

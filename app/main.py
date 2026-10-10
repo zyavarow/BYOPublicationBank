@@ -1,6 +1,7 @@
 """Research Portal Setup Kit: local web app (setup wizard for an organization's portal). Runs on this computer only (127.0.0.1)."""
 import os
 import re
+import time
 import sys
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -18,7 +19,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from app.colors import logo_colors, pull_colors  # noqa: E402
-from pubbank import bank, orgs, pdfs, review, samples, sources, topic  # noqa: E402
+from pubbank import bank, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -27,7 +28,7 @@ app.mount("/static", StaticFiles(directory=APP / "static"), name="static")
 templates = Jinja2Templates(directory=APP / "templates")
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
-STEP_TITLES = {3: "Extraction Schema", 5: "Review & Launch"}
+STEP_TITLES = {}
 LOGO_MAX, GUIDE_MAX = 2 * 1024 * 1024, 20 * 1024 * 1024
 REFERENCE_MAX = 25 * 1024 * 1024
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
@@ -43,6 +44,15 @@ async def same_origin_only(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+def _mins(seconds):
+    """A rough time as words: '40 seconds', '3 minutes', '2 hours'."""
+    if seconds < 90:
+        return f"{max(10, round(seconds / 10) * 10)} seconds"
+    if seconds < 5400:
+        return f"{round(seconds / 60)} minutes"
+    return f"{seconds / 3600:.1f} hours"
 
 
 def _org_or_404(folder):
@@ -219,7 +229,7 @@ def add_pmids(folder: str, ids: str = Form("")):
         oid = _org_id(conn, org)
     if sources.busy(oid):
         return JSONResponse({"error": "Another import for this organization is still running. Wait for it to finish."}, status_code=409)
-    jid = sources.new_job("pmid", f"{len(good)} PubMed IDs", oid)
+    jid = sources.new_job("pmid", f"{len(good)} PubMed IDs", oid, f"about {_mins(len(good) * 1.5)} for {len(good)} papers")
     sources.start(sources.run_pmid_job, jid, oid, good, bad)
     return {"job": jid, "count": len(good)}
 
@@ -242,7 +252,7 @@ def add_reference(folder: str, file: UploadFile):
         oid = _org_id(conn, org)
     if sources.busy(oid):
         return JSONResponse({"error": "Another import for this organization is still running. Wait for it to finish."}, status_code=409)
-    jid = sources.new_job("reference", f"{len(records)} references ({fmt})", oid)
+    jid = sources.new_job("reference", f"{len(records)} references ({fmt})", oid, f"about {_mins(len(records) * 2.5)} for {len(records)} references")
     sources.start(sources.run_reference_job, jid, oid, records)
     return {"job": jid, "count": len(records), "format": fmt}
 
@@ -278,7 +288,7 @@ def _start_pdf_job(org, copy_files, label):
         oid = _org_id(conn, org)
     if sources.busy(oid):
         return JSONResponse({"error": "Another import for this organization is still running. Wait for it to finish."}, status_code=409)
-    jid = sources.new_job("pdf", label, oid)
+    jid = sources.new_job("pdf", label, oid, "about a minute per PDF")
     sources.start(pdfs.run_job, jid, oid, org["db_slug"] or org["name"], copy_files)
     return {"job": jid}
 
@@ -428,7 +438,7 @@ def topic_ai(folder: str, confirm: str = Form("")):
         return JSONResponse({"error": "There are no papers left to check."}, status_code=400)
     if sources.busy(oid):
         return JSONResponse({"error": "Another job for this organization is still running."}, status_code=409)
-    jid = sources.new_job("topic", f"AI topic check of {est['papers']} papers", oid)
+    jid = sources.new_job("topic", f"AI topic check of {est['papers']} papers", oid, f"about {_mins(est['papers'] * 0.7)} for {est['papers']} papers")
     sources.start(topic.run_ai_job, jid, oid, disease, est["high"])
     return {"job": jid, "estimate": est}
 
@@ -523,7 +533,7 @@ def sample_run(folder: str, sample_id: int = Form(...), confirm: str = Form(""))
         est = samples.estimate(conn, folder, smp["paper_ids"])
     if sources.busy(oid):
         return JSONResponse({"error": "Another job for this organization is still running."}, status_code=409)
-    jid = sources.new_job("sample", f"extraction of {est['papers']} sample papers", oid)
+    jid = sources.new_job("sample", f"extraction of {est['papers']} sample papers", oid, f"about {est['minutes']} minutes")
     sources.start(samples.run_job, jid, oid, folder, sample_id, est["high"])
     return {"job": jid, "estimate": est}
 
@@ -608,7 +618,215 @@ def job_status(folder: str, job_id: str):
     job = sources.get_job(job_id)
     if not job or not orgs.valid_folder(folder):
         return JSONResponse({"error": "Unknown job"}, status_code=404)
-    return {k: job[k] for k in ("stage", "done", "total", "finished", "error", "result", "label")}
+    out = {k: job[k] for k in ("stage", "done", "total", "finished", "error", "result", "label", "hint")}
+    out["elapsed"] = round(time.time() - job["started"])
+    return out
+
+
+def _cfg_dict(org, **changes):
+    cfg = {k: org[k] for k in orgs.DEFAULTS}
+    cfg.update(changes)
+    return cfg
+
+
+@app.get("/org/{folder}/step/3", response_class=HTMLResponse)
+def step3(request: Request, folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return HTMLResponse("Unknown organization", status_code=404)
+    v = schema_edit.view(folder)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        n_papers = bank.counts(conn, oid)
+        ctx_ = {"org": org, "view": v, "step": 3}
+        if v is not None:
+            ctx_.update(uploads=schema_ai.list_uploads(folder), notes=schema_ai.get_notes(folder), proposal=schema_ai.load_proposal(folder),
+                        est=schema_ai.estimate(conn, oid, folder, org), est_revise=schema_ai.estimate(conn, oid, folder, org, revising=True), gene_roles=schema_ai.GENE_ROLES,
+                        has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), papers_in_bank=n_papers["inbank"] + n_papers["abstract"],
+                        approved=org["schema_approved"] == v["version"])
+    return _page(request, "step3.html", **ctx_)
+
+
+def _schema_call(folder, fn):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    try:
+        result = fn(org)
+    except (ValueError, KeyError) as e:
+        return JSONResponse({"error": str(e.args[0]) if e.args else "That did not work."}, status_code=400)
+    return {"ok": True, **(result or {})}
+
+
+@app.post("/org/{folder}/schema/start")
+def schema_start(folder: str, disease: str = Form("")):
+    def go(org):
+        if len(disease.strip()) < 10:
+            raise ValueError("Describe the disease or topic in a sentence or two.")
+        schema_edit.create_overlay(folder, disease)
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/context")
+def schema_context(folder: str, disease: str = Form("")):
+    def go(org):
+        if len(disease.strip()) < 10:
+            raise ValueError("Describe the disease or topic in a sentence or two.")
+        ov = overlay_edit.Overlay(schema_edit.overlay_path(folder))
+        ov.set_context("disease", disease.strip())
+        ov.save()
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/category")
+def schema_category(folder: str, cid: str = Form(...), label: str = Form(""), counts: str = Form(""), not_counts: str = Form(""),
+                    interpret: str = Form(""), na_means: str = Form(""), nf_means: str = Form(""), options: str | None = Form(None),
+                    filter_chip: str = Form("no")):
+    def go(org):
+        data = {"filter_chip": filter_chip == "yes"}
+        for k, v in (("label", label), ("counts", counts), ("not_counts", not_counts), ("interpret", interpret), ("na_means", na_means), ("nf_means", nf_means)):
+            if v.strip():
+                data[k] = v
+        if options is not None:
+            data["options"] = [o for o in options.splitlines()]
+        schema_edit.save_category(folder, cid, data)
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/include")
+def schema_include(folder: str, cid: str = Form(...), include: str = Form("no")):
+    return _schema_call(folder, lambda org: schema_edit.set_included(folder, cid, include == "yes"))
+
+
+@app.post("/org/{folder}/schema/add")
+def schema_add(folder: str, label: str = Form(""), kind: str = Form(""), options: str = Form(""), counts: str = Form(""),
+               not_counts: str = Form(""), all_papers: str = Form("no")):
+    return _schema_call(folder, lambda org: {"id": schema_edit.add_field(folder, label, kind, options.splitlines(), counts, not_counts,
+                                                                          all_papers == "yes")})
+
+
+@app.post("/org/{folder}/schema/upload")
+def schema_upload(folder: str, files: list[UploadFile]):
+    def go(org):
+        saved, skipped = [], []
+        for f in files:
+            try:
+                data = f.file.read(schema_ai.MAX_UPLOAD + 1)
+                saved.append(schema_ai.save_upload(folder, f.filename or "document", data)[0])
+            except ValueError as e:
+                skipped.append(f"{f.filename}: {e}")
+        if not saved and skipped:
+            raise ValueError(skipped[0])
+        return {"saved": saved, "skipped": skipped}
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/upload-delete")
+def schema_upload_delete(folder: str, name: str = Form(...)):
+    return _schema_call(folder, lambda org: schema_ai.delete_upload(folder, name))
+
+
+@app.post("/org/{folder}/schema/notes")
+def schema_notes(folder: str, notes: str = Form("")):
+    return _schema_call(folder, lambda org: schema_ai.set_notes(folder, notes))
+
+
+@app.post("/org/{folder}/schema/propose")
+def schema_propose(folder: str, confirm: str = Form(""), feedback: str = Form(""), current: str = Form("")):
+    import json as _json
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    if confirm != "yes":
+        return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        est = schema_ai.estimate(conn, oid, folder, org, revising=bool(feedback.strip()))
+    if not est["has_material"]:
+        return JSONResponse({"error": "Add a transcript, a document or some notes first."}, status_code=400)
+    if feedback.strip() and current:
+        try:
+            schema_ai.save_edited(folder, _json.loads(current))
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+    if sources.busy(oid):
+        return JSONResponse({"error": "Another job for this organization is still running."}, status_code=409)
+    jid = sources.new_job("schema", "AI schema proposal", oid, "about 30 to 60 seconds")
+    sources.start(schema_ai.run_job, jid, oid, folder, org, feedback)
+    return {"job": jid, "estimate": est}
+
+
+@app.post("/org/{folder}/schema/apply")
+def schema_apply(folder: str, accept: str = Form("{}"), proposal: str = Form("")):
+    import json as _json
+
+    def go(org):
+        try:
+            acc = _json.loads(accept)
+            edited = _json.loads(proposal) if proposal else None
+        except ValueError:
+            raise ValueError("Bad request.")
+        return {"done": schema_ai.apply(folder, acc, edited)}
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/defaults")
+def schema_defaults(folder: str, answer_format: str = Form("plain"), search_depth: str = Form("standard")):
+    def go(org):
+        if answer_format not in ("plain", "technical") or search_depth not in ("quick", "standard", "deep"):
+            raise ValueError("Bad choice.")
+        orgs.save(folder, _cfg_dict(org, answer_format=answer_format, search_depth=search_depth))
+    return _schema_call(folder, go)
+
+
+@app.post("/org/{folder}/schema/approve")
+def schema_approve(folder: str):
+    def go(org):
+        v = schema_edit.view(folder)
+        if v is None:
+            raise ValueError("Create the template first.")
+        orgs.save(folder, _cfg_dict(org, schema_approved=v["version"]))
+    return _schema_call(folder, go)
+
+
+@app.get("/org/{folder}/step/5", response_class=HTMLResponse)
+def step5(request: Request, folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return HTMLResponse("Unknown organization", status_code=404)
+    v = schema_edit.view(folder)
+    score = None
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        counts = bank.counts(conn, oid)
+        if v is not None:
+            from pubbank.template import load_context
+            smp = samples.latest(conn, oid)
+            if smp and smp["status"] == "done":
+                score = samples.scorecard(conn, smp["id"], load_context(samples.template_path(folder)))
+    fields = {"standard": 0, "customized": 0, "custom": 0}
+    for c in (v["cards"] if v else []):
+        if c["include"]:
+            fields[c["kind"]] += 1
+    return _page(request, "step5.html", org=org, view=v, bank=counts, fields=fields, score=score, depths=schema_edit.depth_options(),
+                 approved=bool(v) and org["schema_approved"] == v["version"])
+
+
+@app.post("/org/{folder}/launch/estimate")
+def launch_estimate(folder: str):
+    org = _org_or_404(folder)
+    if org is None or not samples.template_path(folder):
+        return JSONResponse({"error": "Set up the extraction schema first."}, status_code=400)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        ids = [r[0] for r in conn.execute("SELECT id FROM papers WHERE org_id = %s AND in_bank AND parse_status = 'ok' ORDER BY id", (oid,))]
+        if not ids:
+            return JSONResponse({"error": "There are no papers in the bank yet."}, status_code=400)
+        est = samples.estimate(conn, folder, ids)
+    est["hours"] = max(1, round(len(ids) * 40 / 3 / 3600, 1))
+    return est
 
 
 @app.get("/org/{folder}/step/{n}", response_class=HTMLResponse)

@@ -1,4 +1,4 @@
-# VCP organization: onboarding interview (answers given by the project owner, 2026-10-09)
+# VCP organization: onboarding interview (answers given by the person setting up the VCP bank, 2026-10-09)
 
 No call notes or transcripts exist for this organization, so this short interview stands in for them.
 It is the input to the AI overlay proposal (scripts/propose_overlay.py) and a record of why the overlay looks the way it does.
@@ -20,7 +20,7 @@ Researchers, and advocacy leaders.
 (Not on-topic: closely related conditions such as sporadic inclusion body myositis, and other AAA+ ATPases. Treat these as related or off-topic.)
 
 ## Q4. How should papers be sorted by gene or protein focus?
-Let the AI propose the options after reading the papers; the owner will edit them.
+Let the AI propose the options after reading the papers; they will edit them.
 
 ## Q5. Extra categories beyond the 10 standard ones
 - Outcome measures and biomarkers (strength tests, functional scales, quality-of-life instruments, blood or imaging biomarkers, with the values reported)
@@ -28,6 +28,6 @@ Let the AI propose the options after reading the papers; the owner will edit the
 - Model strains and cell lines (specific mouse, fly or iPSC lines used, for example an R155H knock-in, and their source)
 (Not selected: muscle and tissue pathology findings.)
 
-## Notes from the project owner
+## Other notes
 - The library contains many basic-science papers (structure, cell biology) next to the clinical ones, plus a few off-topic papers.
 - One paper in the sample (Llewellyn 2017) is retracted in PubMed and was excluded from the bank.

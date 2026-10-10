@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — Extraction Schema{% endblock %}
+{% block body %}
+{{ steps(org, 3) }}
+<div id="schemaRoot" data-folder="{{ org.folder }}">
+<h1>What should get pulled out of every paper?</h1>
+<p class="lede">These fields are filled in for each paper when the library is read. The same fields power your search filters and the citation panel: one decision, used twice.</p>
+<div class="flash err" id="schemaErr" hidden></div>
+
+{% if not view %}
+<div class="card stack" style="max-width:720px">
+  <h2>Start with the standard template</h2>
+  <p class="plain">Every library starts from the same ten fields (study type, gene focus, variants, models, techniques, samples, reagents, authors, treatments, clinical features). First tell us what your library is about, in a sentence or two. You will then tailor the fields on this screen.</p>
+  <textarea id="startDisease" rows="3" placeholder="For example: deficiency of adenosine deaminase 2 (DADA2), a rare inherited autoinflammatory disease caused by variants in the ADA2 gene">{{ org.description }}</textarea>
+  <div><button type="button" class="btn" id="startBtn">Create the starting template</button></div>
+</div>
+
+{% else %}
+<div class="cols">
+  <div class="main-col stack" style="flex:.85">
+    <div class="card stack">
+      <h2>Teach it about this project</h2>
+      <div class="lab" style="margin:0">Call transcripts, notes or documents</div>
+      <div class="uplist">
+        {% for u in uploads %}<div class="upitem"><span>{{ u.name }}</span><span class="badge ok">Processed</span><button type="button" class="x" data-del="{{ u.name }}" title="Remove">✕</button></div>
+        {% else %}<div class="hint" style="margin:0">Nothing uploaded yet. Transcripts of calls with the organization work best.</div>{% endfor %}
+      </div>
+      <div class="logo-row"><label class="btn small upload line" for="docFiles">Add files<input type="file" id="docFiles" multiple accept=".txt,.md,.docx,.pdf"></label>
+        <span class="filenote" id="docNote">.txt, .md, .docx or .pdf, up to 5 MB each.</span></div>
+      <label class="lab" for="notes" style="margin:6px 0 0">Anything else worth adding?</label>
+      <textarea id="notes" rows="3" placeholder="For example: two key papers disagree on efficacy, which turned out to be different antibodies.">{{ notes }}</textarea>
+      <div class="lab" style="margin:6px 0 0">About the project <span class="opt">(used in every reading instruction)</span></div>
+      <textarea id="disease" rows="4">{{ view.disease }}</textarea>
+      <div class="actions" style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span class="filenote" id="ctxNote"></span><button type="button" class="btn small line" id="saveCtx">Save description</button></div>
+      <div class="inputbox" style="padding:16px">
+        <div class="lab">Let the AI propose changes</div>
+        <p class="plain">Claude reads what you added above, a sample of your papers' abstracts, and the standard template, then suggests tailored fields, genes, options and a disease description. Nothing changes until you accept items below.</p>
+        <div class="costline"><strong>about {{ money(est.expected) }}</strong> <span>(at most {{ money(est.high) }})</span></div>
+        <label class="check"><input type="checkbox" id="propConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
+        <div class="actions" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span class="count">{% if not est.has_material %}Add a transcript or notes first.{% elif not has_key %}No Anthropic API key is set on this computer.{% endif %}</span>
+          <button type="button" class="btn small" id="propBtn" disabled data-ready="{{ 1 if est.has_material and has_key else 0 }}">{{ 'Regenerate proposal' if proposal else 'Generate proposal' }}</button></div>
+        <div class="jobbox" id="jobBox" hidden style="margin-top:12px"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+          <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
+      </div>
+    </div>
+
+    {% if proposal %}
+    <div class="card stack" id="proposal">
+      <h2>The AI's proposal</h2>
+      <p class="plain">{{ proposal.summary }}</p>
+      <div class="hint">Read from {{ proposal._meta.documents|length }} document{{ '' if proposal._meta.documents|length == 1 else 's' }}{% if proposal._meta.cost %}; cost {{ money(proposal._meta.cost) }}{% endif %}. Everything below can be edited before you apply it.</div>
+
+      <h3 class="sechead">Changes to the extraction schema</h3>
+      <p class="hint" style="margin:0">Tick what you want included in the extraction schema, the list of fields the AI fills in for every paper.</p>
+      <div class="pitemrow"><input type="checkbox" data-k="gene_focus" checked><div style="flex:1"><strong>Gene / protein focus options</strong>
+        <div class="pdesc">The choices for “which gene or protein is this paper mainly about?” One per line.</div>
+        <textarea id="pFocus" rows="{{ [proposal.gene_focus_options|length + 1, 4]|max }}">{{ proposal.gene_focus_options|join('\n') }}</textarea></div></div>
+      {% for ch in proposal.core_changes if ch.action != 'keep' %}
+      <div class="pitemrow" data-corebox="{{ ch.id }}"><input type="checkbox" data-core="{{ ch.id }}" checked><div style="flex:1">
+        <strong>{{ 'Remove the field' if ch.action == 'remove' else 'Update the field' }}: {{ ch.id|replace('_', ' ')|capitalize }}</strong>
+        <div class="pdesc">{{ ch.why }}</div>
+        {% if ch.action == 'edit' %}<label class="lab sm">Options to add (one per line)<textarea data-co="add_options" rows="{{ [ch.add_options|length + 1, 2]|max }}">{{ ch.add_options|join('\n') }}</textarea></label>
+        <label class="lab sm">Also record<textarea data-co="counts_addition" rows="2">{{ ch.counts_addition }}</textarea></label>{% endif %}</div></div>
+      {% endfor %}
+      {% for f in proposal.new_fields %}
+      <div class="pitemrow" data-newbox="{{ loop.index0 }}"><input type="checkbox" data-new="{{ loop.index0 }}" checked><div style="flex:1">
+        <strong>New field</strong> <span class="pdesc">{{ f.why }}</span>
+        <label class="lab sm">Name<input type="text" data-nf="label" value="{{ f.label }}"></label>
+        <label class="lab sm">Kind<select data-nf="kind"><option value="pick_many" {{ 'selected' if f.kind == 'pick_many' }}>Pick several</option><option value="pick_one" {{ 'selected' if f.kind == 'pick_one' }}>Pick one</option><option value="text_list" {{ 'selected' if f.kind == 'text_list' }}>Free text</option></select></label>
+        <label class="lab sm">Options (one per line)<textarea data-nf="options" rows="3">{{ f.options|join('\n') }}</textarea></label>
+        <label class="lab sm">What it captures<textarea data-nf="counts" rows="2">{{ f.counts }}</textarea></label>
+        <label class="lab sm">What it ignores<textarea data-nf="not_counts" rows="2">{{ f.not_counts }}</textarea></label></div></div>
+      {% endfor %}
+      {% if not (proposal.core_changes|selectattr('action', 'ne', 'keep')|list) and not proposal.new_fields %}<div class="hint">No changes to the fields are proposed.</div>{% endif %}
+
+      <h3 class="sechead">Other project settings <span class="opt">(not part of the extraction schema)</span></h3>
+      <div class="pitemrow"><input type="checkbox" data-k="disease" checked><div style="flex:1"><strong>Disease description</strong>
+        <div class="pdesc">Given to the AI with every paper so it knows what is on and off topic. It does not add a field.</div>
+        <textarea id="pDisease" rows="5">{{ proposal.disease }}</textarea></div></div>
+      <div class="pitemrow"><input type="checkbox" data-k="terms" checked><div style="flex:1"><strong>Topic words</strong>
+        <div class="pdesc">Used only by the off-topic check on the Publication Bank step, to spot papers that never mention your topic. Separate with semicolons.</div>
+        <textarea id="pTerms" rows="3">{{ proposal.topic_terms|join('; ') }}</textarea></div></div>
+      <div class="pitemrow"><input type="checkbox" data-k="genes" checked><div style="flex:1"><strong>Genes, proteins and their other names</strong>
+        <div class="pdesc">So that different names for the same gene are treated as one (for example p97 = VCP = Cdc48 in yeast). The role says how each relates to the disease.</div>
+        <table class="gtbl" id="pGenes"><tr><th>Name</th><th>Other names (commas)</th><th>Role</th><th>Note</th><th></th></tr>
+        {% for g in proposal.genes %}<tr><td><input type="text" data-g="symbol" value="{{ g.symbol }}"></td><td><input type="text" data-g="aliases" value="{{ g.aliases|join(', ') }}"></td>
+          <td><select data-g="role">{% for r in gene_roles %}<option {{ 'selected' if r == g.role }}>{{ r }}</option>{% endfor %}</select></td>
+          <td><input type="text" data-g="note" value="{{ g.note }}"></td><td><button type="button" class="x" data-gdel title="Remove">✕</button></td></tr>{% endfor %}</table>
+        <button type="button" class="btn small line" id="addGene" style="margin-top:6px">+ Add a gene</button></div></div>
+
+      <div><button type="button" class="btn" id="applyBtn">Apply the ticked items</button></div>
+
+      <div class="inputbox" style="padding:16px">
+        <div class="lab">Not quite right? Tell the AI what to change</div>
+        <textarea id="feedback" rows="3" placeholder="For example: also capture cofactors such as NPL4, UFD1 and UBXD1 as a separate field, and group the other multisystem proteinopathy genes together."></textarea>
+        <label class="check"><input type="checkbox" id="reviseConfirm"> I understand a revision costs about {{ money(est_revise.expected) }}, and no more than {{ money(est_revise.high) }}.</label>
+        <div class="actions" style="display:flex;justify-content:flex-end"><button type="button" class="btn small line" id="reviseBtn" disabled data-ready="{{ 1 if has_key else 0 }}">Revise the proposal</button></div>
+      </div>
+      <script id="propData" type="application/json">{{ proposal | tojson }}</script>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="side-col stack" style="flex:1.15">
+    <div class="listhead"><div><h2 style="margin:0">Proposed extraction schema</h2>
+      <div class="hint" style="margin:2px 0 0">{{ uploads|length }} document{{ '' if uploads|length == 1 else 's' }} + {{ papers_in_bank }} papers</div></div></div>
+    <p class="hint" style="margin:0">Fields marked <span class="chip std">Standard</span> are the same for every organization, so results can be compared across libraries. Adding options or new fields is the safest way to tailor them; rewording a standard field makes it <span class="chip cust">Customized</span>.</p>
+    {% set group = view.cards|selectattr('include')|list %}
+    {% for section, label in (('std', 'Standard fields'), ('mine', 'Added for this organization')) %}
+    {% set shown = group|rejectattr('custom')|list if section == 'std' else group|selectattr('custom')|list %}
+    {% if shown %}<h3 class="sechead">{{ label }}</h3>{% endif %}
+    {% for c in shown %}
+    <div class="card fcard" data-cid="{{ c.id }}">
+      <div class="fhead"><strong>{{ c.label }}</strong><span class="chip">{{ c.chip }}</span>
+        {% if c.kind == 'standard' %}<span class="chip std">Standard</span>{% elif c.kind == 'customized' %}<span class="chip cust" title="Changed for this organization: {{ c.changes|join(', ') }}">Customized: {{ c.changes|join(', ') }}</span>{% else %}<span class="chip mine">Custom</span>{% endif %}
+        {% if not c.locked %}<button type="button" class="x" data-remove="{{ c.id }}" title="Remove this field">✕</button>{% endif %}</div>
+      <div class="fwhy">{{ c.why }}</div>
+      {% if c.options %}<div class="chips">{% for o in c.options[:7] %}<span class="chip o">{{ o }}</span>{% endfor %}{% if c.options|length > 7 %}<span class="chip o">+{{ c.options|length - 7 }} more</span>{% endif %}</div>
+      {% elif c.example %}<div class="fex">e.g. {{ c.example }}</div>{% endif %}
+      <details class="fdet"><summary>Edit details</summary>
+        <div class="fform stack">
+          {% if c.kind != 'custom' %}<div class="warnnote">This is a standard field. Adding options is fine. Rewording what it counts changes how this organization's results compare with others.</div>{% endif %}
+          <label class="lab">Name<input type="text" data-f="label" value="{{ c.label }}"></label>
+          <label class="lab">What counts<textarea data-f="counts" rows="3">{{ c.text.counts }}</textarea></label>
+          <label class="lab">What does NOT count<textarea data-f="not_counts" rows="2">{{ c.text.not_counts }}</textarea></label>
+          <label class="lab">How to interpret it<textarea data-f="interpret" rows="3">{{ c.text.interpret }}</textarea></label>
+          <div class="row"><label class="lab">“Not applicable” means<textarea data-f="na_means" rows="2">{{ c.text.na_means }}</textarea></label>
+            <label class="lab">“Not found” means<textarea data-f="nf_means" rows="2">{{ c.text.nf_means }}</textarea></label></div>
+          {% if c.options_field %}<label class="lab">Options (one per line)<textarea data-f="options" rows="6">{{ c.options|join('\n') }}</textarea></label>{% endif %}
+          <label class="check"><input type="checkbox" data-f="filter_chip" {{ 'checked' if c.filter_chip }}> Show as a search filter</label>
+          <div class="hint">Applies to {{ c.applies_to }}.</div>
+          <div><button type="button" class="btn small save-field">Save this field</button> <span class="filenote fsaved"></span></div>
+        </div>
+      </details>
+    </div>
+    {% endfor %}
+    {% endfor %}
+    <div class="card fcard auto"><div class="fhead"><strong>Publication year, all authors, last author</strong><span class="chip">Automatic</span></div>
+      <div class="fwhy">Filled in from PubMed or Crossref at no AI cost.</div></div>
+
+    <details class="card addcard" id="addCard"><summary>+ Add custom field</summary>
+      <div class="stack" style="margin-top:12px">
+        <label class="lab">Field name<input type="text" id="afLabel" placeholder="For example: Outcome measures"></label>
+        <label class="lab">What kind of answer?<select id="afKind"><option value="pick_many">Pick several from a list</option><option value="pick_one">Pick one from a list</option><option value="text_list">Free-text list</option></select></label>
+        <label class="lab" id="afOptWrap">Options (one per line)<textarea id="afOptions" rows="4" placeholder="Mild&#10;Moderate&#10;Severe"></textarea></label>
+        <label class="lab">What should it capture?<textarea id="afCounts" rows="2" placeholder="Tests, scales and biomarkers this paper itself used to measure disease, with the values reported."></textarea></label>
+        <label class="lab">What should it ignore?<textarea id="afNot" rows="2" placeholder="Optional. Measures only cited from other studies."></textarea></label>
+        <label class="check"><input type="checkbox" id="afAll"> Apply to every kind of paper (including reviews)</label>
+        <div><button type="button" class="btn small" id="afSave">Add field</button></div>
+      </div>
+    </details>
+
+    {% set removed = view.cards|rejectattr('include')|list %}
+    {% if removed %}<details class="card addcard"><summary>Removed fields ({{ removed|length }})</summary>
+      {% for c in removed %}<div class="upitem"><span>{{ c.label }}</span><button type="button" class="btn small line" data-addback="{{ c.id }}">Add back</button></div>{% endfor %}</details>{% endif %}
+  </div>
+</div>
+
+{% endif %}
+
+<div class="footer">
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/2">← Back</a>
+  {% if view %}<button type="button" class="btn" id="approveBtn">Approve schema — Continue →</button>{% endif %}
+</div>
+</div>
+<script src="/static/js/step3.js"></script>
+{% endblock %}

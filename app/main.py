@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from app.colors import logo_colors, pull_colors  # noqa: E402
-from pubbank import bank, batch_run, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, sources, topic  # noqa: E402
+from pubbank import ask as asker, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -774,11 +774,16 @@ def schema_apply(folder: str, accept: str = Form("{}"), proposal: str = Form("")
 
 
 @app.post("/org/{folder}/schema/defaults")
-def schema_defaults(folder: str, answer_format: str = Form("plain"), search_depth: str = Form("standard")):
+def schema_defaults(folder: str, answer_format: str = Form("plain"), search_depth: str = Form("standard"), allow_depth_choice: str = Form("yes"),
+                    daily_cap: str = Form("5")):
     def go(org):
-        if answer_format not in ("plain", "technical") or search_depth not in ("quick", "standard", "deep"):
+        if answer_format not in ("plain", "technical") or search_depth not in ("quick", "standard", "deep") or allow_depth_choice not in ("yes", "no"):
             raise ValueError("Bad choice.")
-        orgs.save(folder, _cfg_dict(org, answer_format=answer_format, search_depth=search_depth))
+        try:
+            cap = max(0.5, min(500.0, float(daily_cap)))
+        except ValueError:
+            raise ValueError("The daily limit must be a number of dollars.")
+        orgs.save(folder, _cfg_dict(org, answer_format=answer_format, search_depth=search_depth, allow_depth_choice=allow_depth_choice, daily_cap=f"{cap:.2f}"))
     return _schema_call(folder, go)
 
 
@@ -887,6 +892,175 @@ def run_cancel(folder: str):
 def start_watcher():
     """Keep any running batch moving, even if the page is closed."""
     threading.Thread(target=batch_run.watch_forever, daemon=True).start()
+
+
+def _synonyms(folder):
+    """Name groups from the organization's gene list, e.g. [['GENE1', 'GENE1A']]; used to widen word searches."""
+    p = schema_edit.overlay_path(folder)
+    if not p:
+        return []
+    from pubbank.template import load_template
+    return [[g["symbol"]] + list(g["aliases"]) for g in load_template(p).get("genes", [])]
+
+
+def _facets(conn, oid, folder):
+    """Filter chips: for each field marked as a search filter, the values found by the extraction and how many papers have each."""
+    p = schema_edit.overlay_path(folder)
+    if not p:
+        return []
+    from pubbank.template import load_template
+    t = load_template(p)
+    rows = conn.execute("""SELECT DISTINCT ON (e.paper_id) e.paper_id, e.result FROM extractions e JOIN papers p ON p.id = e.paper_id
+                           WHERE e.org_id = %s AND e.status = 'ok' AND p.in_bank ORDER BY e.paper_id, e.created_at DESC""", (oid,)).fetchall()
+    out = []
+    for c in t["categories"]:
+        if not (c["include"] and c["filter_chip"]):
+            continue
+        counts = {}
+        for pid, res in rows:
+            seen = set()
+            for e in (res.get(c["id"]) or {}).get("entries", []):
+                v = e.get(c["fields"][0]["name"]) if c["fields"] else None
+                if isinstance(v, str) and v.strip() and v.strip()[:60] not in seen:
+                    seen.add(v.strip()[:60])
+                    counts.setdefault(v.strip()[:60], set()).add(pid)
+        vals = sorted(((v, len(ps)) for v, ps in counts.items()), key=lambda x: (-x[1], x[0]))[:25]
+        out.append({"id": c["id"], "label": c["label"], "values": [{"value": v, "papers": n} for v, n in vals]})
+    return out
+
+
+def _filtered_papers(conn, oid, filters):
+    """Paper ids that match every chosen filter value (None when no filter is chosen)."""
+    if not filters:
+        return None
+    rows = conn.execute("""SELECT DISTINCT ON (e.paper_id) e.paper_id, e.result FROM extractions e JOIN papers p ON p.id = e.paper_id
+                           WHERE e.org_id = %s AND e.status = 'ok' AND p.in_bank ORDER BY e.paper_id, e.created_at DESC""", (oid,)).fetchall()
+    keep = []
+    for pid, res in rows:
+        ok = True
+        for cid, wanted in filters.items():
+            have = {str(v).strip()[:60] for e in (res.get(cid) or {}).get("entries", []) for k, v in e.items() if k != "evidence" and isinstance(v, str)}
+            if not (set(wanted) & have):
+                ok = False
+                break
+        if ok:
+            keep.append(pid)
+    return keep
+
+
+@app.get("/org/{folder}/workspace", response_class=HTMLResponse)
+def workspace(request: Request, folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return HTMLResponse("Unknown organization", status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        counts = bank.counts(conn, oid)
+        idx = search_index.status(conn, oid)
+        asker.ensure_table(conn)
+        recent = [dict(id=r[0], question=r[1]) for r in conn.execute(
+            "SELECT id, question FROM ask_log WHERE org_id = %s ORDER BY id DESC LIMIT 8", (oid,))]
+        today = asker.spent_today(conn, oid)
+        facets = _facets(conn, oid, folder)
+        extracted = conn.execute("SELECT count(DISTINCT paper_id) FROM extractions WHERE org_id = %s AND status = 'ok'", (oid,)).fetchone()[0]
+    v = schema_edit.view(folder)
+    cap = float(org.get("daily_cap") or 5)
+    return _page(request, "workspace.html", org=org, bank=counts, idx=idx, recent=recent, today=today, cap=cap, facets=facets, extracted=extracted,
+                 fields=len([c for c in v["cards"] if c["include"]]) if v else 0, roles={k: x[0] for k, x in asker.ROLES.items()},
+                 depths=[dict(key=k, label=d["label"], cost=asker.estimate(k)) for k, d in asker.DEPTHS.items()],
+                 has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), choose_depth=org.get("allow_depth_choice", "yes") != "no")
+
+
+@app.get("/org/{folder}/workspace/facets")
+def workspace_facets(folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    with connect() as conn:
+        return {"facets": _facets(conn, _org_id(conn, org), folder)}
+
+
+@app.post("/org/{folder}/workspace/ask")
+def workspace_ask(folder: str, question: str = Form(""), role: str = Form("scientist"), depth: str = Form(""), fmt: str = Form(""),
+                  mode: str = Form("answer"), filters: str = Form("{}")):
+    import json as _json
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    try:
+        flt = _json.loads(filters) if filters else {}
+    except ValueError:
+        flt = {}
+    depth = depth if org.get("allow_depth_choice", "yes") != "no" and depth in asker.DEPTHS else org.get("search_depth", "standard")
+    fmt = fmt if fmt in asker.FORMATS else org.get("answer_format", "plain")
+    syn = _synonyms(folder)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        paper_ids = _filtered_papers(conn, oid, flt)
+        if paper_ids is not None and not paper_ids:
+            return JSONResponse({"error": "No extracted papers match those filters yet."}, status_code=400)
+        if mode == "search":                     # free: show the best passages, no AI
+            if not question.strip():
+                return JSONResponse({"error": "Type a question or some search words."}, status_code=400)
+            hits = search.search(conn, oid, question.strip(), k=20, per_paper=2, synonyms=syn, paper_ids=paper_ids)
+            return {"mode": "search", "passages": search.passages(conn, hits)}
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+        if sources.busy(oid):
+            return JSONResponse({"error": "Another question is still being answered. Wait for it to finish."}, status_code=409)
+    jid = sources.new_job("ask", question[:80], oid, {"quick": "about 15 seconds", "standard": "about 30 seconds", "deep": "about 1 to 2 minutes"}[depth])
+    disease = topic_disease(org)
+    cap = float(org.get("daily_cap") or 5)
+
+    def work():
+        c = connect()
+        try:
+            sources._set(jid, stage="Searching the library and writing the answer", total=0)
+            r = asker.ask(c, oid, question, role=role, depth=depth, fmt=fmt, disease=disease, synonyms=syn, paper_ids=paper_ids, daily_cap=cap)
+            sources._set(jid, finished=True, stage="Done", result={"kind": "ask", **r})
+        except ValueError as e:
+            sources._set(jid, finished=True, stage="Failed", error=str(e))
+        except Exception as e:
+            sources._set(jid, finished=True, stage="Failed", error=f"Something went wrong while answering ({type(e).__name__}). Try again, or use Quick depth.")
+        finally:
+            c.close()
+    sources.start(work)
+    return {"job": jid}
+
+
+@app.get("/org/{folder}/workspace/answer/{ask_id}")
+def workspace_answer(folder: str, ask_id: int):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        r = conn.execute("SELECT id, question, answer, sources FROM ask_log WHERE id = %s AND org_id = %s", (ask_id, oid)).fetchone()
+    if not r:
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": r[3]}
+
+
+@app.post("/org/{folder}/index/build")
+def index_build(folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+    if sources.busy(oid):
+        return JSONResponse({"error": "Another job is still running."}, status_code=409)
+    jid = sources.new_job("index", "search index", oid, "a few hours for hundreds of papers; plugged in is faster")
+
+    def work():
+        try:
+            sources._set(jid, stage="Building the search index")
+            res = search_index.build(oid, on_progress=lambda stage, d, t: sources._set(jid, stage=stage, done=d, total=t))
+            sources._set(jid, finished=True, stage="Done", result={"kind": "index", **res})
+        except Exception as e:
+            sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+    sources.start(work)
+    return {"job": jid}
 
 
 @app.get("/org/{folder}/step/{n}", response_class=HTMLResponse)

@@ -8,13 +8,13 @@
 {% block head %}{% endblock %}
 </head>
 <body>
-<div class="topbar">
+{% block topbar %}<div class="topbar">
   <a class="brand" href="/">Research Portal Setup Kit</a>
   <div class="right">
     <a class="exit" href="/">Save &amp; exit</a>
   </div>
-</div>
-<div class="page">
+</div>{% endblock %}
+<div class="page{% block pageclass %}{% endblock %}">
 {% if flash %}<div class="flash {{ 'err' if flash_error else '' }}">{{ flash }}</div>{% endif %}
 {% block body %}{% endblock %}
 </div>

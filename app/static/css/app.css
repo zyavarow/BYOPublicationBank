@@ -276,3 +276,46 @@ blockquote cite { display: block; font-style: normal; font-size: 11px; color: va
 .sumbox { border: 1px solid var(--line-soft); border-radius: 12px; padding: 14px 16px; background: var(--field); }
 .big2 { font-family: var(--serif); font-size: 26px; font-weight: 600; } .big2 small { font-family: var(--sans); font-size: 12px; color: var(--faint); font-weight: 400; }
 @media (max-width: 760px) { .sumgrid { grid-template-columns: 1fr; } }
+
+/* workspace */
+.wsbar { background: #fff; } .wsbrand { display: flex; align-items: center; gap: 12px; } .wsname { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+.wspriv { font-size: 12px; color: var(--faint); margin-left: 4px; }
+.wspage { max-width: 1280px; padding-top: 18px; }
+.wsnav { display: flex; justify-content: center; align-items: center; gap: 0; font-size: 12px; font-weight: 600; margin-bottom: 18px; }
+.wsnav .on { background: var(--primary); color: #fff; padding: 7px 14px; border-radius: 16px; } .wsnav .off { color: var(--muted); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; }
+.wsnav .arrow { color: var(--dashed); margin: 0 10px; }
+.wssearch { max-width: 860px; margin: 0 auto 8px; }
+.qrow { display: flex; gap: 10px; } .qrow input { flex: 1; border: 1.5px solid var(--primary); border-radius: 28px; padding: 14px 20px; font-size: 15px; background: var(--field); }
+.btn.go { background: var(--accent); border-radius: 28px; padding: 0 28px; }
+.chiprow { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.fchip { border: 0; background: #EFECE2; color: #8A8679; font: 600 12px var(--sans); padding: 6px 13px; border-radius: 14px; cursor: pointer; } .fchip.on { background: var(--primary); color: #fff; }
+.facetpanel { margin-top: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; max-height: 220px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 14px; }
+.facetopt { font-size: 12.5px; cursor: pointer; } .faint { color: var(--faint); font-size: 12px; }
+.optrow { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; } .optlab { font-size: 11px; font-weight: 600; color: var(--faint); }
+.seg { background: var(--field); color: var(--muted); border: 1px solid var(--line); font: 600 11px var(--sans); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.seg.on { background: var(--primary); border-color: var(--primary); color: #fff; } .seg small { opacity: .75; font-weight: 500; }
+.draft { font-size: 10px; color: var(--dashed); font-style: italic; } .freechk { margin-left: auto; font-size: 12px; }
+.wscols { display: flex; gap: 28px; margin-top: 20px; align-items: flex-start; } .wsmain { flex: 1; max-width: 800px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.wsside { width: 300px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.sidecard { padding: 18px 20px; } .sidehd { font-size: 13px; font-weight: 600; margin-bottom: 8px; } .sidebody { font-size: 13px; color: var(--label); line-height: 1.7; }
+.recent { display: block; font-size: 13px; color: var(--label); line-height: 1.4; padding: 6px 0; border-bottom: 1px solid var(--line-soft); } .recent:last-child { border: 0; } .recent:hover { color: var(--primary); }
+.emptybox { text-align: center; padding: 40px 20px; color: var(--muted); } .suggest { display: flex; flex-direction: column; gap: 8px; align-items: center; margin-top: 14px; }
+.sg { border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 9px 16px; font: 500 13px var(--sans); cursor: pointer; color: var(--label); } .sg:hover { border-color: var(--primary); color: var(--primary); }
+.qshow { font: 600 17px var(--serif); margin: 0 0 4px; }
+.anscard { padding: 24px; } .anshead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.anslab { font-size: 12px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; } .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.cbadge { font-size: 11px; font-weight: 600; color: var(--muted); background: #EFECE2; padding: 5px 11px; border-radius: 12px; }
+.cbadge.conf-high { color: #1F4F43; background: #E1EEEA; } .cbadge.conf-medium { color: #8A6D1F; background: var(--warn-bg); } .cbadge.conf-low { color: #8A4A2A; background: #FBF3EE; }
+.ansp { font-size: 15px; line-height: 1.7; margin: 0 0 14px; } .basis { font-size: 12px; color: var(--faint); border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.cite { color: var(--primary); font-weight: 600; text-decoration: none; margin: 0 1px; } .cite:hover { text-decoration: underline; }
+.callout { border-radius: 16px; padding: 16px 20px; font-size: 13px; line-height: 1.55; } .callout ul { margin: 6px 0 0; padding-left: 18px; } .ctitle { font-weight: 600; margin-bottom: 2px; }
+.callout.notcov { background: #FBF3EE; border: 1px solid #E8CFBE; color: #8A4A2A; } .callout.disag { background: #EEF2F8; border: 1px solid #CFD9EA; color: #34507A; }
+.callout.warn { background: var(--warn-bg); border: 1px solid #EBDDB0; color: var(--warn); }
+.srccard { padding: 22px 24px; } .srchead { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.src { display: flex; gap: 12px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line-soft); border-radius: 6px; } .src:last-child { border: 0; margin: 0; padding: 0; }
+.src.flash { background: #FFF8DC; } .srcno { font-size: 12px; font-weight: 700; color: var(--faint); width: 16px; flex: 0 0 auto; } .srcbody { min-width: 0; flex: 1; }
+.srctitle { font-size: 13px; font-weight: 600; line-height: 1.4; } .srcmeta { font-size: 12px; color: var(--faint); margin-top: 2px; }
+.tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; } .tag { font-size: 10px; font-weight: 600; color: #1F4F43; background: #E1EEEA; padding: 2px 8px; border-radius: 9px; } .tag.warn { color: #8A4A2A; background: #FBF3EE; }
+.srclinks { display: flex; gap: 14px; margin-top: 6px; } .linkbtn { background: none; border: 0; padding: 0; font: 600 12px var(--sans); color: var(--primary); cursor: pointer; text-decoration: none; }
+.passages blockquote { margin: 8px 0 0; } .src blockquote { white-space: pre-line; }
+@media (max-width: 900px) { .wscols { flex-direction: column; } .wsside { width: 100%; } .freechk { margin-left: 0; } }

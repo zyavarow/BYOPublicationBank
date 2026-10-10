@@ -4,7 +4,8 @@
 {% block body %}
 {{ steps(org, 5) }}
 <div id="launchRoot" data-folder="{{ org.folder }}">
-<h1>Review before you launch</h1>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap"><h1>Review before you launch</h1>
+  <a class="btn line" href="/org/{{ org.folder }}/workspace">Open the workspace →</a></div>
 <p class="lede">Everything below can be changed later. Check the summary, choose how answers should look by default, and see what reading the whole library will cost.</p>
 <div class="flash err" id="launchErr" hidden></div>
 
@@ -39,6 +40,10 @@
   <div class="row">
     {% for d in depths %}<label class="optcard"><input type="radio" name="depth" value="{{ d.key }}" {{ 'checked' if org.search_depth == d.key }}><div><strong>{{ d.label }}</strong> <span class="chip">≈ ${{ '%.2f'|format(d.cost) }} per search</span><div class="pdesc">{{ d.text }}</div></div></label>{% endfor %}
   </div>
+  <label class="check"><input type="checkbox" id="allowDepth" {{ 'checked' if org.allow_depth_choice != 'no' }}> Let people choose the depth for each question (otherwise everyone gets the default above)</label>
+  <div class="web-row" style="align-items:center"><label class="lab" for="dailyCap" style="margin:0">Spending limit for questions, per day: $</label>
+    <input type="number" id="dailyCap" min="0.5" max="500" step="0.5" value="{{ org.daily_cap }}" style="max-width:100px"></div>
+  <div class="hint">When the day's questions reach this amount, new questions wait until tomorrow. This protects the organization's Anthropic account.</div>
   <div class="filenote" id="defNote"></div>
 </div>
 
@@ -75,11 +80,12 @@
   const folder = document.getElementById("launchRoot").dataset.folder;
   const $ = (id) => document.getElementById(id);
   const save = async () => {
-    const body = new URLSearchParams({ answer_format: document.querySelector("input[name=fmt]:checked").value, search_depth: document.querySelector("input[name=depth]:checked").value });
+    const body = new URLSearchParams({ answer_format: document.querySelector("input[name=fmt]:checked").value, search_depth: document.querySelector("input[name=depth]:checked").value,
+                                       allow_depth_choice: $("allowDepth").checked ? "yes" : "no", daily_cap: $("dailyCap").value || "5" });
     const r = await fetch(`/org/${folder}/schema/defaults`, { method: "POST", body });
     $("defNote").textContent = r.ok ? "Saved." : "Could not save.";
   };
-  for (const r of document.querySelectorAll("input[name=fmt], input[name=depth]")) r.addEventListener("change", save);
+  for (const r of document.querySelectorAll("input[name=fmt], input[name=depth], #allowDepth, #dailyCap")) r.addEventListener("change", save);
   const money = (x) => "$" + x.toFixed(x < 10 ? 2 : 0);
   let est = null;
   $("priceBtn").addEventListener("click", async () => {

@@ -28,6 +28,17 @@
   </div>
 </div>
 
+<div class="card stack" style="max-width:900px;margin-top:20px" id="keyCard">
+  <h2>Anthropic API key</h2>
+  <p class="plain" style="margin:0">Every question, topic check and library read is billed to an Anthropic account. Enter this organization's own key so that it pays for its own use. The key is stored on the server only: this page never shows it again, and it is never sent to the browser or to anyone but Anthropic.</p>
+  <div class="inputbox" id="keyState"></div>
+  <div class="web-row" style="align-items:center"><input type="password" id="keyIn" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" style="max-width:420px">
+    <button type="button" class="btn small" id="keySave">Save and test</button></div>
+  <div class="hint">Create a key in the Anthropic Console (console.anthropic.com → API keys). Set a monthly spending limit there too: it is your safety net, and this app's own limits are in addition to it. Testing a key is free.</div>
+  <div class="web-row" style="align-items:center;gap:10px"><button type="button" class="btn small line" id="keyTest">Test the key in use</button>
+    <button type="button" class="btn small line" id="keyRemove" hidden>Remove this organization's key</button><span class="filenote" id="keyNote"></span></div>
+</div>
+
 <div class="card stack" style="max-width:900px;margin-top:20px">
   <h2>Default answer format</h2>
   <p class="plain" style="margin:0">Members can switch anytime; this sets what they see first. Both cite every claim.</p>
@@ -79,6 +90,28 @@
 (function () {
   const folder = document.getElementById("launchRoot").dataset.folder;
   const $ = (id) => document.getElementById(id);
+  // API key (the key itself is never shown again: only where it comes from and its last four characters)
+  let keyInfo = {{ key | tojson }};
+  const drawKey = () => {
+    $("keyState").innerHTML = keyInfo.source === "own" ? "<strong>Using this organization's own key</strong> ending in <code>" + keyInfo.last4 + "</code>."
+      : keyInfo.source === "default" ? "<strong>Using the shared default key</strong> for this installation. Enter the organization's own key below to replace it for this organization."
+      : "<strong style='color:var(--accent)'>No key is set.</strong> Questions and reading the library will not work until one is entered.";
+    $("keyRemove").hidden = keyInfo.source !== "own";
+    $("keyIn").value = "";
+  };
+  const keyCall = async (path, body, working) => {
+    $("keyNote").textContent = working;
+    const r = await fetch(`/org/${folder}/apikey${path}`, { method: "POST", body });
+    const d = await r.json();
+    if (d.source) keyInfo = { source: d.source, last4: d.last4 };
+    drawKey();
+    $("keyNote").textContent = d.message || d.error || "";
+  };
+  $("keySave").addEventListener("click", () => keyCall("", new URLSearchParams({ key: $("keyIn").value }), "Checking the key with Anthropic…"));
+  $("keyIn").addEventListener("keydown", (e) => { if (e.key === "Enter") $("keySave").click(); });
+  $("keyTest").addEventListener("click", () => keyCall("/test", undefined, "Checking the key with Anthropic…"));
+  $("keyRemove").addEventListener("click", () => { if (confirm("Remove this organization's key? It will go back to the shared default key.")) keyCall("/remove", undefined, "Removing…"); });
+  drawKey();
   const save = async () => {
     const body = new URLSearchParams({ answer_format: document.querySelector("input[name=fmt]:checked").value, search_depth: document.querySelector("input[name=depth]:checked").value,
                                        allow_depth_choice: $("allowDepth").checked ? "yes" : "no", daily_cap: $("dailyCap").value || "5" });

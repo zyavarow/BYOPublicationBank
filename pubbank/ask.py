@@ -15,7 +15,7 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 
-from pubbank import search
+from pubbank import apikey, search
 from pubbank.bank import clean_title
 from pubbank.db import Jsonb, connect
 
@@ -208,7 +208,7 @@ def ask(conn, org_id, question, role="scientist", depth="standard", fmt="plain",
         raise ValueError(f"The daily spending limit of ${daily_cap:.2f} for questions has been reached. It resets tomorrow, or an administrator can raise it.")
     t0 = time.time()
     d = DEPTHS[depth]
-    client = anthropic.Anthropic()
+    client = apikey.client_for_org(conn, org_id)
     meter = Meter()
     hits, queries = _retrieve(conn, org_id, question, d, client, meter, synonyms, paper_ids)
     passages = search.passages(conn, hits)

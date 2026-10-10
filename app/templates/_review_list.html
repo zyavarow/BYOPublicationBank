@@ -1,0 +1,33 @@
+  <div class="tabs-pills">
+    {% for key, (label, _c, _h) in groups.items() %}{% if counts[key] or key == g %}
+    <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
+  </div>
+  <div class="listtitle"><h3>{{ headings[g][0] }}</h3><p class="plain" style="margin:2px 0 0">{{ groups[g][2] }}</p>
+    <p class="hint" style="margin:6px 0 0"><strong>{{ headings[g][1] }}</strong></p></div>
+  <div class="items" style="max-height:none">
+    {% for it in items %}
+    <div class="item" data-id="{{ it.id }}" data-decision="{{ it.decision }}">
+      <div class="main"><div class="ttl" style="white-space:normal">{{ it.title }}</div>
+        <div class="sub" style="white-space:normal">{{ it.meta }}{% if it.meta %} · {% endif %}<span class="src">{{ it.source }}</span>
+          {% if it.why %} · {{ it.why }}{% if it.method == 'ai' %} (AI check){% endif %}{% endif %}
+          {% if it.other %}<br>Looks like: <em>{{ it.other }}</em>{% endif %}</div></div>
+      <div class="badge {{ 'ok' if it.in_bank else 'gray' }}" data-role="state">{{ 'In bank' if it.in_bank else 'Set aside' }}</div>
+      <div class="decide" data-default="{{ 'in' if it.default_in else 'out' }}" data-keep="{{ 1 if it.can_keep else 0 }}">
+        {% set over = (it.default_in and it.decision == 'Exclude') or (not it.default_in and it.decision == 'Keep') %}
+        {% if over %}<span class="cannot">{{ 'You excluded this' if it.decision == 'Exclude' else 'You kept this' }}</span><button type="button" class="dec" data-d="">Undo</button>
+        {% elif not it.can_keep %}<span class="cannot">Nothing usable to keep</span>
+        {% elif it.default_in %}<button type="button" class="dec" data-d="Exclude">Exclude</button>
+        {% else %}<button type="button" class="dec" data-d="Keep">Keep in bank</button>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">Nothing here. {% if g in ('offtopic', 'borderline') %}Run a topic check above.{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% if pages > 1 %}
+  <div class="pager">
+    {% if p > 1 %}<a href="?g={{ g }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
+    <span>Page {{ p }} of {{ pages }} · {{ total }} papers</span>
+    {% if p < pages %}<a href="?g={{ g }}&p={{ p + 1 }}">Next →</a>{% else %}<span></span>{% endif %}
+  </div>
+  {% endif %}

@@ -5,7 +5,7 @@
 {{ steps(org, 3) }}
 
 <h1>Clean up the bank</h1>
-<p class="lede">Optional. The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, review its suggestions, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back. You can skip this step and come back later.</p>
+<p class="lede">Recommended. The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, review its suggestions, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back. You can skip this step and come back later.</p>
 
 <div class="cols" id="reviewTop" data-folder="{{ org.folder }}">
   <div class="card main-col stack">
@@ -47,41 +47,17 @@
 </div>
 
 <div class="card listcard" style="margin-top:24px">
-  <div class="tabs-pills">
-    {% for key, (label, _c, _h) in groups.items() %}{% if counts[key] or key == g %}
-    <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
+  <div>
+    <h2 style="margin:0 0 4px">Which of the flagged papers should stay in the bank?</h2>
+    <p class="plain" style="margin:0">The system flagged these papers while preparing the bank: look-alikes, possible duplicates, papers that are not research, and possible off-topic papers. By default, look-alikes, papers that are not research and possible off-topic papers are <strong>set aside</strong> (left out of the bank), while possible duplicates and "worth a look" papers <strong>stay in</strong> until you exclude them. Choose a tab, then use the button on a paper to overrule the default: <strong>Keep in bank</strong> for set-aside papers, <strong>Exclude</strong> for the others. Undo puts it back to the default. Your choice is saved straight away, and nothing is ever deleted.</p>
   </div>
-  <div class="listtitle"><h3>{{ headings[g][0] }}</h3><p class="plain" style="margin:2px 0 0">{{ groups[g][2] }}</p>
-    <p class="hint" style="margin:6px 0 0"><strong>{{ headings[g][1] }}</strong> Choose <strong>Keep</strong> to put a paper in the bank or <strong>Exclude</strong> to leave it out. Your choice is saved straight away.</p></div>
-  <div class="items" style="max-height:none">
-    {% for it in items %}
-    <div class="item" data-id="{{ it.id }}" data-decision="{{ it.decision }}">
-      <div class="main"><div class="ttl" style="white-space:normal">{{ it.title }}</div>
-        <div class="sub" style="white-space:normal">{{ it.meta }}{% if it.meta %} · {% endif %}<span class="src">{{ it.source }}</span>
-          {% if it.why %} · {{ it.why }}{% if it.method == 'ai' %} (AI check){% endif %}{% endif %}
-          {% if it.other %}<br>Looks like: <em>{{ it.other }}</em>{% endif %}</div></div>
-      <div class="badge {{ 'ok' if it.in_bank else 'gray' }}" data-role="state">{{ 'In bank' if it.in_bank else 'Set aside' }}</div>
-      <div class="decide">
-        {% if it.can_keep %}<button type="button" class="dec {{ 'on' if it.decision == 'Keep' else '' }}" data-d="Keep">Keep</button>{% endif %}
-        <button type="button" class="dec {{ 'on bad' if it.decision == 'Exclude' else '' }}" data-d="Exclude">Exclude</button>
-        {% if not it.can_keep %}<span class="cannot">Nothing usable to keep</span>{% endif %}
-      </div>
-    </div>
-    {% else %}
-    <div class="empty">Nothing here. {% if g in ('offtopic', 'borderline') %}Run a topic check above.{% endif %}</div>
-    {% endfor %}
+  <div id="reviewList">
+{% include "_review_list.html" %}
   </div>
-  {% if pages > 1 %}
-  <div class="pager">
-    {% if p > 1 %}<a href="?g={{ g }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
-    <span>Page {{ p }} of {{ pages }} · {{ total }} papers</span>
-    {% if p < pages %}<a href="?g={{ g }}&p={{ p + 1 }}">Next →</a>{% else %}<span></span>{% endif %}
-  </div>
-  {% endif %}
 </div>
 <div class="footer">
   <a class="btn ghost" href="/org/{{ org.folder }}/step/2">← Back</a>
   <a class="btn" href="/org/{{ org.folder }}/step/4">Continue — Extraction Schema →</a>
 </div>
-<script src="/static/js/review.js"></script>
+<script src="{{ static_v('js/review.js') }}"></script>
 {% endblock %}

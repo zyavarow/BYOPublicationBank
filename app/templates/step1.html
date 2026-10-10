@@ -24,8 +24,9 @@
       <div class="logo-row">
         <label class="btn small upload" for="brand_guide">{% if org.brand_guide %}Replace brand guide{% else %}Upload brand guide (PDF){% endif %}
           <input type="file" name="brand_guide" id="brand_guide" accept=".pdf,application/pdf"></label>
-        <span class="filenote" id="guideText">{% if org.brand_guide %}Saved. Kept for reference; colors are not read from PDFs yet.{% else %}Optional. Kept for reference; colors are not read from PDFs yet.{% endif %}</span>
-      </div></div>
+        <span class="filenote" id="guideText">{% if org.brand_guide %}Saved. Colors found in it are suggested below.{% else %}Optional. We read the colors written in the guide and suggest them below.{% endif %}</span>
+      </div>
+      <div class="swatches" id="guideSwatches" hidden></div></div>
     <div><label class="lab" for="website">Website</label>
       <div class="web-row">
         <input type="url" id="website" name="website" value="{{ org.website }}" placeholder="https://www.their-organization.org">

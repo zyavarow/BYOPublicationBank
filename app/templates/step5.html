@@ -1,137 +1,119 @@
 {% extends "base.html" %}
 {% from "_steps.html" import steps %}
-{% block title %}Setup — Review &amp; Launch{% endblock %}
+{% block title %}Setup — Check a sample{% endblock %}
 {% block body %}
 {{ steps(org, 5) }}
-<div id="launchRoot" data-folder="{{ org.folder }}">
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap"><h1>Review before you launch</h1>
-  <a class="btn line" href="/org/{{ org.folder }}/workspace">Open the workspace →</a></div>
-<p class="lede">Everything below can be changed later. Check the summary, choose how answers should look by default, and see what reading the whole library will cost.</p>
-<div class="flash err" id="launchErr" hidden></div>
+<div id="sampleRoot" data-folder="{{ org.folder }}" data-state="{{ state }}" {% if smp %}data-sample="{{ smp.id }}"{% endif %}>
+<h1>Check a sample</h1>
 
-<div class="card stack" style="max-width:900px">
-  <div class="logo-row"><div class="avatar" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</div>
-    <div><h2 style="margin:0">{{ org.name }}</h2><div class="hint" style="margin:0">{{ org.description }}</div></div></div>
-  <div class="sumgrid">
-    <div class="sumbox"><div class="lab">Publication bank</div>
-      <div class="big2">{{ bank.inbank + bank.abstract }} <small>papers in the bank</small></div>
-      <div class="hint">{{ bank.total }} received{% if bank.abstract %} · {{ bank.abstract }} abstract only{% endif %} · {{ bank.total - bank.inbank - bank.abstract }} set aside.
-        <a class="lnk" href="/org/{{ org.folder }}/step/2">Change</a></div></div>
-    <div class="sumbox"><div class="lab">Extraction schema</div>
-      {% if view %}<div class="big2">{{ fields.standard + fields.customized + fields.custom }} <small>fields</small></div>
-      <div class="hint">{{ fields.standard }} standard · {{ fields.customized }} customized · {{ fields.custom }} added. {% if approved %}Approved.{% else %}<strong style="color:var(--accent)">Not approved yet.</strong>{% endif %}
-        <a class="lnk" href="/org/{{ org.folder }}/step/3">Change</a></div>
-      {% else %}<div class="hint">No schema yet. <a class="lnk" href="/org/{{ org.folder }}/step/3">Set it up</a></div>{% endif %}</div>
-    <div class="sumbox"><div class="lab">Sample check</div>
-      {% if score and score.overall.reviewed %}<div class="big2">{{ score.overall.pct }}% <small>correct</small></div><div class="hint">{{ score.overall.reviewed }} answers marked. <a class="lnk" href="/org/{{ org.folder }}/step/4">Open</a></div>
-      {% else %}<div class="hint">Not done. A 15-paper check is recommended before reading everything. <a class="lnk" href="/org/{{ org.folder }}/step/4">Check a sample</a></div>{% endif %}</div>
-  </div>
+{% if state == 'no_template' %}
+<p class="lede">This step reads a few papers with your extraction template, so the template has to exist first. It is set up in step 3.</p>
+<div class="card soon"><p>Finish the Extraction Schema step, then come back.</p>
+  <p><a class="btn line" href="/org/{{ org.folder }}/step/4">← Extraction Schema</a></p></div>
+
+{% elif state == 'none' %}
+<p class="lede">Before the whole library is read, check a small sample. We choose a varied set of papers, read them with your template, and show you every answer next to the quote it came from. You mark each one right or wrong, and the scorecard shows which fields need work. It is recommended, not required.</p>
+<div class="card stack" style="max-width:720px">
+  <div class="lab">How big a sample?</div>
+  <div class="web-row"><input type="number" id="sampleN" value="{{ default_size }}" min="3" max="{{ max_size }}" style="max-width:120px">
+    <button type="button" class="btn small" id="pickBtn">Pick a sample</button></div>
+  <div class="hint">{{ pool }} papers in the bank are suitable. Fifteen covers the main kinds of paper. Choosing costs nothing; you will see the price before anything is read.</div>
 </div>
 
-<div class="card stack" style="max-width:900px;margin-top:20px">
-  <h2>Default answer format</h2>
-  <p class="plain" style="margin:0">Members can switch anytime; this sets what they see first. Both cite every claim.</p>
-  <div class="row">
-    <label class="optcard"><input type="radio" name="fmt" value="plain" {{ 'checked' if org.answer_format != 'technical' }}><div><strong>Plain-language summary</strong><div class="pdesc">Written for patients and caregivers: minimal jargon, every claim still cited.</div></div></label>
-    <label class="optcard"><input type="radio" name="fmt" value="technical" {{ 'checked' if org.answer_format == 'technical' }}><div><strong>Technical summary</strong><div class="pdesc">More terminology, still fully cited, for clinical and scientific staff.</div></div></label>
-  </div>
-  <h2 style="margin-top:8px">Search depth</h2>
-  <p class="plain" style="margin:0">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later.</p>
-  <div class="row">
-    {% for d in depths %}<label class="optcard"><input type="radio" name="depth" value="{{ d.key }}" {{ 'checked' if org.search_depth == d.key }}><div><strong>{{ d.label }}</strong> <span class="chip">≈ ${{ '%.2f'|format(d.cost) }} per search</span><div class="pdesc">{{ d.text }}</div></div></label>{% endfor %}
-  </div>
-  <label class="check"><input type="checkbox" id="allowDepth" {{ 'checked' if org.allow_depth_choice != 'no' }}> Let people choose the depth for each question (otherwise everyone gets the default above)</label>
-  <div class="web-row" style="align-items:center"><label class="lab" for="dailyCap" style="margin:0">Spending limit for questions, per day: $</label>
-    <input type="number" id="dailyCap" min="0.5" max="500" step="0.5" value="{{ org.daily_cap }}" style="max-width:100px"></div>
-  <div class="hint">When the day's questions reach this amount, new questions wait until tomorrow. This protects the organization's Anthropic account.</div>
-  <div class="filenote" id="defNote"></div>
-</div>
-
-<div class="card stack" style="max-width:900px;margin-top:20px" id="runCard">
-  <h2>Read the whole library</h2>
-  <p class="plain" style="margin:0">Every paper in the bank is read once with the schema above, using Anthropic's half-price Batch service. Nothing is read or charged until you press Start.</p>
-  <div id="runIdle">
-    <div><button type="button" class="btn small line" id="priceBtn" {{ 'disabled' if not view }}>Work out the price</button> <span class="filenote" id="priceNote"></span></div>
-    <div class="inputbox" id="priceBox" hidden style="margin-top:12px">
-      <table class="stbl" id="priceTbl"></table>
-      <div class="hint" id="priceHint"></div>
-      <div class="web-row" style="margin-top:12px;align-items:center"><label class="lab" for="limit" style="margin:0">Spending limit $</label>
-        <input type="number" id="limit" min="1" step="1" style="max-width:110px"></div>
-      <div class="hint">The run stops and submits nothing more if the cost so far reaches this. Your Anthropic workspace may have its own, lower monthly limit: check it first.</div>
-      <label class="check" style="margin-top:10px"><input type="checkbox" id="runConfirm"> I understand this will cost about <span id="confExp"></span>, and I want to read all <span id="confN"></span> papers.</label>
-      <div class="actions" style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn" id="startBtn" disabled>Start reading the library</button></div>
+{% elif state == 'draft' %}
+<p class="lede">These papers were chosen to be varied: case reports, trials, reviews and others, from different years. Swap any you would rather not use. Nothing is read, and nothing is charged, until you press Run.</p>
+<div class="cols">
+  <div class="card main-col stack">
+    <div class="items" style="max-height:none">
+      {% for p in papers %}
+      <div class="item"><div class="main"><div class="ttl" style="white-space:normal">{{ p.title }}</div>
+        <div class="sub">{{ p.journal or '' }} {{ p.year or '' }}{% if p.journal or p.year %} · {% endif %}{{ 'Full text' if p.level == 'full_text' else 'Abstract only' }} · {{ (p.chars or 0) // 1000 }}k characters</div></div>
+        <button type="button" class="dec swap" data-paper="{{ p.id }}">Swap</button></div>
+      {% endfor %}
     </div>
   </div>
-  <div id="runLive" hidden class="inputbox">
-    <div class="jobhead"><strong id="runMsg">Starting…</strong><span id="runMeta"></span></div>
-    <div class="bar indet" id="runBar"><div class="fill" id="runFill" style="width:0"></div></div>
-    <div class="hint" id="runHint">Anthropic runs the batch; each round usually finishes within an hour (it can take up to a day). You can close this window: the app picks the run up again when you reopen it.</div>
-    <div class="actions" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="filenote" id="runDone"></span><button type="button" class="btn small line" id="cancelBtn">Cancel the run</button></div>
+  <div class="card side-col stack">
+    <h2>Price</h2>
+    {% if est %}
+    <div class="costline"><strong>{{ est.papers }} papers · about {{ money(est.expected) }}</strong><br><span style="margin:0">at most {{ money(est.high) }}; the run stops if it reaches that. About {{ est.minutes }} minutes.</span></div>
+    <label class="check"><input type="checkbox" id="runConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
+    <button type="button" class="btn" id="runBtn" disabled {{ '' if has_key else 'data-nokey=1' }}>Read these papers</button>
+    {% if not has_key %}<div class="hint">No Anthropic API key is set on this computer.</div>{% endif %}
+    {% else %}<p class="plain">The price could not be worked out.</p>{% endif %}
+    <button type="button" class="btn line" id="againBtn">Choose a different sample</button>
   </div>
 </div>
+
+{% elif state == 'running' %}
+<p class="lede">The sample is being read. This takes a few minutes; you can leave this page open.</p>
+<div class="jobbox" id="jobBox"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+  <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
+
+{% else %}
+<p class="lede">Open a paper, compare each answer with the quote beside it, and mark it. The scorecard updates as you go. Skip anything you cannot judge, or mark it Unsure.</p>
+{% if stale %}<div class="flash err">The template has changed since this sample was read, so these answers come from an older version. Start a new sample to see the current template's answers.</div>{% endif %}
+<div class="review4">
+  <aside class="card plist">
+    <div class="lab">Sample papers</div>
+    {% for p in papers %}
+    <a class="pitem {{ 'on' if loop.index0 == idx else '' }}" href="?paper={{ loop.index0 }}">
+      <span class="pt">{{ p.title }}</span><span class="pc">{{ done_rows.get(p.id, 0) }}/{{ answers_total or 10 }}</span></a>
+    {% endfor %}
+    <button type="button" class="btn line small" id="againBtn" style="margin-top:12px">Start a new sample</button>
+  </aside>
+  <main class="stack">
+    {% if cur %}
+    <div class="card">
+      <h2 style="margin-bottom:4px">{{ cur.title }}</h2>
+      <div class="sub" style="font-size:12px;color:var(--faint)">{{ cur.journal or '' }} {{ cur.year or '' }} · {{ 'Full text' if cur.level == 'full_text' else 'Abstract only' }}
+        {% if cur.source == 'pdf' %} · <a class="lnk" target="_blank" href="/org/{{ org.folder }}/paper/{{ cur.id }}/pdf">Open the PDF</a>{% endif %}
+        {% if cur.pmid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pubmed.ncbi.nlm.nih.gov/{{ cur.pmid }}/">PubMed</a>{% endif %}
+        {% if cur.pmcid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/{{ cur.pmcid }}/">PubMed Central</a>{% endif %}
+        {% if cur.doi %} · <a class="lnk" target="_blank" rel="noopener" href="https://doi.org/{{ cur.doi }}">DOI</a>{% endif %}</div>
+    </div>
+    {% if answers %}
+    {% for c in answers.cards %}
+    <div class="card acard" data-paper="{{ cur.id }}" data-cat="{{ c.id }}">
+      <div class="ahead"><strong>{{ c.label }}</strong>
+        <span class="badge {{ 'ok' if c.status == 'Found' else ('gray' if c.status == 'Not applicable' else 'warn') }}">{{ c.status }}</span>
+        <span class="conf">{{ c.confidence }} confidence</span></div>
+      {% for e in c.entries %}
+      <div class="entry"><div class="etext">{{ e.text or '(no text)' }}</div>
+        {% if e.quote %}<blockquote>“{{ e.quote }}”<cite>{{ e.section }}{% if e.page %}, p.{{ e.page }}{% endif %}
+          {% if e.check == 'verified' %}<span class="qok">quote found in the paper</span>{% elif e.check %}<span class="qbad">quote not matched exactly: check carefully</span>{% endif %}
+          {% if cur.source == 'pdf' and e.page %} · <a class="lnk" target="_blank" href="/org/{{ org.folder }}/paper/{{ cur.id }}/pdf#page={{ e.page }}">open at page {{ e.page }}</a>{% endif %}</cite></blockquote>{% endif %}</div>
+      {% endfor %}
+      {% if not c.entries %}<div class="entry"><div class="etext faint">(no entries)</div></div>{% endif %}
+      {% if c.rationale and c.status != 'Found' %}<div class="why">Why: {{ c.rationale }}</div>{% endif %}
+      <div class="vrow">{% for v in verdicts %}<button type="button" class="dec v {{ 'on' if c.verdict == v else '' }} {{ 'bad' if c.verdict == v and v in ('Wrong', 'Partly wrong') else '' }}" data-v="{{ v }}">{{ v }}</button>{% endfor %}</div>
+      <input type="text" class="note" placeholder="Note: what is wrong or missing, and where in the paper?" value="{{ c.note }}" maxlength="2000">
+    </div>
+    {% endfor %}
+    <div class="card acard" data-paper="{{ cur.id }}" data-cat="_missed">
+      <div class="ahead"><strong>Anything the AI missed in this paper?</strong></div>
+      <input type="text" class="note" placeholder="For example: the paper also reports variant p.R169Q, which was not extracted." value="{{ answers.missed }}" maxlength="2000">
+    </div>
+    {% else %}<div class="card soon"><p>No answers were saved for this paper (the read may have failed).</p></div>{% endif %}
+    {% endif %}
+  </main>
+  <aside class="card score" id="scoreBox">
+    <div class="lab">Scorecard</div>
+    <div id="scoreBody"></div>
+    <div class="scorebtns">
+      <a class="btn line small" href="/org/{{ org.folder }}/sample/{{ smp.id }}/check.xlsx">Download for review</a>
+      <label class="btn line small upload" for="chkFile">Upload reviewed<input type="file" id="chkFile" accept=".xlsx"></label>
+      <div class="filenote" id="chkNote"></div>
+    </div>
+    <div class="hint">Changing the template? Go back to step 3, then start a new sample to see the effect. A new sample costs again.</div>
+  </aside>
 </div>
+<script id="scoreData" type="application/json">{{ score | tojson }}</script>
+{% endif %}
 
 <div class="footer">
-  <a class="btn ghost" href="/org/{{ org.folder }}/step/4">← Back</a>
-  <span></span>
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/4">← Extraction Schema</a>
+  <a class="btn" href="/org/{{ org.folder }}/step/6">{{ 'Continue — Review & Launch →' if state == 'done' else 'Skip for now — Review & Launch →' }}</a>
 </div>
-<script>
-(function () {
-  const folder = document.getElementById("launchRoot").dataset.folder;
-  const $ = (id) => document.getElementById(id);
-  const save = async () => {
-    const body = new URLSearchParams({ answer_format: document.querySelector("input[name=fmt]:checked").value, search_depth: document.querySelector("input[name=depth]:checked").value,
-                                       allow_depth_choice: $("allowDepth").checked ? "yes" : "no", daily_cap: $("dailyCap").value || "5" });
-    const r = await fetch(`/org/${folder}/schema/defaults`, { method: "POST", body });
-    $("defNote").textContent = r.ok ? "Saved." : "Could not save.";
-  };
-  for (const r of document.querySelectorAll("input[name=fmt], input[name=depth], #allowDepth, #dailyCap")) r.addEventListener("change", save);
-  const money = (x) => "$" + x.toFixed(x < 10 ? 2 : 0);
-  let est = null;
-  $("priceBtn").addEventListener("click", async () => {
-    $("priceBtn").disabled = true; $("priceNote").textContent = "Counting… this takes up to a minute for a large library.";
-    const r = await fetch(`/org/${folder}/launch/estimate`, { method: "POST" });
-    const d = await r.json();
-    $("priceBtn").disabled = false;
-    if (!r.ok) { $("priceNote").textContent = d.error; return; }
-    est = d; $("priceNote").textContent = "";
-    $("priceBox").hidden = false;
-    $("priceTbl").innerHTML = `<tr><th>${d.papers} papers · ${d.requests} reading requests</th><th>Price</th></tr>` +
-      `<tr><td>Batch service (used here, half price)</td><td>about ${money(d.expected)}, at most ${money(d.high)}</td></tr>` +
-      `<tr><td>Standard service, for comparison</td><td>about ${money(d.standard_expected)}</td></tr>`;
-    $("priceHint").textContent = "Estimated from the size of your papers. It assumes every paper needs all reading passes, so it leans high. 'At most' assumes no discount from re-used instructions.";
-    $("limit").value = Math.ceil(d.high); $("confExp").textContent = money(d.expected); $("confN").textContent = d.papers;
-  });
-  $("runConfirm").addEventListener("change", (e) => ($("startBtn").disabled = !e.target.checked));
-  $("startBtn").addEventListener("click", async () => {
-    $("startBtn").disabled = true;
-    const r = await fetch(`/org/${folder}/run/start`, { method: "POST", body: new URLSearchParams({ limit: $("limit").value, confirm: "yes" }) });
-    const d = await r.json();
-    if (!r.ok) { $("priceNote").textContent = d.error; $("runConfirm").checked = false; return; }
-    poll();
-  });
-  $("cancelBtn").addEventListener("click", async () => {
-    if (!confirm("Cancel the run? Anything Anthropic has already processed is still charged.")) return;
-    await fetch(`/org/${folder}/run/cancel`, { method: "POST" });
-    poll();
-  });
-  let timer = null;
-  async function poll() {
-    clearTimeout(timer);
-    let run = null;
-    try { run = (await (await fetch(`/org/${folder}/run/status`)).json()).run; } catch (e) { timer = setTimeout(poll, 15000); return; }
-    if (!run) return;
-    $("runLive").hidden = false; $("runIdle").hidden = run.status === "running";
-    const mins = Math.round((Date.now() - new Date(run.started)) / 60000);
-    $("runMsg").textContent = run.message || "Working…";
-    $("runMeta").textContent = `${run.papers} papers · started ${mins < 1 ? "just now" : mins + " min ago"} · cost so far ${money(run.cost)} of ${money(run.limit)} limit`;
-    const live = run.status === "running";
-    $("runBar").classList.toggle("indet", live); $("runFill").style.width = live ? "" : "100%";
-    $("cancelBtn").hidden = !live;
-    $("runDone").textContent = run.status === "done" ? "Finished. The answers are saved and ready for the workspace." : run.status === "running" ? "" : "";
-    if (live) timer = setTimeout(poll, 20000);
-  }
-  poll();
-})();
-</script>
+</div>
+<script src="/static/js/step5.js"></script>
 {% endblock %}

@@ -25,6 +25,17 @@ GROUPS = {
     "failed": ("Could not be read", "p.parse_status NOT IN ('ok', 'skipped_ocr', 'duplicate_skipped', 'pending')",
                "Damaged or unreadable files."),
 }
+# Heading and one-line status for each list, so the first thing a reader sees says what the papers below are.
+HEADINGS = {
+    "offtopic": ("Suggested to exclude: may be off-topic", "These are currently left out of the bank."),
+    "borderline": ("Worth a look: the AI was unsure", "These are currently kept in the bank."),
+    "software": ("Suggested to exclude: look-alikes", "These are currently left out of the bank."),
+    "possible_dup": ("Possible duplicates: suggested to exclude one copy of each pair", "Both copies are currently in the bank."),
+    "nonpaper": ("Suggested to exclude: not research papers", "These are currently left out of the bank."),
+    "duplicate": ("Already excluded: duplicate copies", "These are left out because an identical copy is kept."),
+    "ocr": ("Already excluded: scanned files with no readable text", "These cannot be read until text recognition is added."),
+    "failed": ("Already excluded: files that could not be read", "These are damaged or unreadable."),
+}
 UNKEEPABLE = {"duplicate", "ocr", "failed"}      # nothing usable to keep, so a person cannot override these
 
 

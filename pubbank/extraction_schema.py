@@ -48,7 +48,8 @@ ClinicalFeatureName = Literal[
 class Evidence(BaseModel):
     quote: str = Field(description=(
         "Text copied EXACTLY, character for character, from the paper that supports this value "
-        "(at most about 300 characters). Never paraphrase or fix typos."))
+        "(at most about 300 characters). Never paraphrase or fix typos. Choose the sentence that shows what this "
+        "paper itself did or found, not a general definition or background statement."))
     section: str = Field(description=(
         "Heading of the section the quote appears in, e.g. 'Methods', 'Results', or 'Title page'."))
     page: int = Field(description=(

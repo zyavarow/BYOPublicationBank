@@ -1,0 +1,13 @@
+{% macro steps(org, current) %}
+{% set names = ["Organization & Branding", "Publication Bank", "Extraction Schema", "Check a sample", "Review & Launch"] %}
+<div class="steps">
+  {% for n in names %}
+    {% set i = loop.index %}
+    <a class="step {{ 'current' if i == current else ('done' if i < current else '') }}" href="/org/{{ org.folder }}/step/{{ i }}">
+      <span class="dot">{% if i < current %}✓{% else %}{{ i }}{% endif %}</span>
+      <span class="name">{{ n }}{% if i == 4 %}<small class="rec">recommended</small>{% endif %}</span>
+    </a>
+    {% if not loop.last %}<span class="bar"></span>{% endif %}
+  {% endfor %}
+</div>
+{% endmacro %}

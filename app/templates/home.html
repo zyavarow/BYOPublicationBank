@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Organizations · Research Portal Setup Kit{% endblock %}
+{% block body %}
+<h1>Organizations</h1>
+<p class="lede">Each organization has its own publication bank, extraction template and portal. Pick one to continue its setup, or start a new one.</p>
+<div class="org-grid">
+  {% for o in orgs %}
+  <div class="card org-card">
+    <div class="head">
+      <div class="avatar" style="background:{{ o.primary }}">{% if o.logo %}<img src="/org/{{ o.folder }}/logo?v={{ o.logo }}" alt="">{% else %}{{ o.initials }}{% endif %}</div>
+      <div><div class="nm">{{ o.name }}</div>
+        <span class="status {{ '' if o.in_bank else 'warn' }}">{{ 'Bank loaded' if o.in_bank else 'No papers yet' }}</span></div>
+    </div>
+    <div class="meta">{% if o.received %}{{ o.received }} papers received · {{ o.in_bank }} in the bank{% else %}No publications added yet{% endif %}<br>
+      {{ o.description or 'No description yet' }}</div>
+    <div class="acts">
+      <a class="btn small" href="/org/{{ o.folder }}/step/1" style="display:inline-flex;align-items:center">Open setup →</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<h2>New organization</h2>
+<form method="post" action="/orgs/new" class="newrow">
+  <input type="text" name="name" placeholder="Organization name" maxlength="120" required>
+  <button class="btn small" type="submit">Create</button>
+</form>
+{% endblock %}

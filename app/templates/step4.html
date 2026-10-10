@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — Check a sample{% endblock %}
+{% block body %}
+{{ steps(org, 4) }}
+<div id="sampleRoot" data-folder="{{ org.folder }}" data-state="{{ state }}" {% if smp %}data-sample="{{ smp.id }}"{% endif %}>
+<h1>Check a sample</h1>
+
+{% if state == 'no_template' %}
+<p class="lede">This step reads a few papers with your extraction template, so the template has to exist first. It is set up in step 3.</p>
+<div class="card soon"><p>Finish the Extraction Schema step, then come back.</p>
+  <p><a class="btn line" href="/org/{{ org.folder }}/step/3">← Extraction Schema</a></p></div>
+
+{% elif state == 'none' %}
+<p class="lede">Before the whole library is read, check a small sample. We choose a varied set of papers, read them with your template, and show you every answer next to the quote it came from. You mark each one right or wrong, and the scorecard shows which fields need work. It is recommended, not required.</p>
+<div class="card stack" style="max-width:720px">
+  <div class="lab">How big a sample?</div>
+  <div class="web-row"><input type="number" id="sampleN" value="{{ default_size }}" min="3" max="{{ max_size }}" style="max-width:120px">
+    <button type="button" class="btn small" id="pickBtn">Pick a sample</button></div>
+  <div class="hint">{{ pool }} papers in the bank are suitable. Fifteen covers the main kinds of paper. Choosing costs nothing; you will see the price before anything is read.</div>
+</div>
+
+{% elif state == 'draft' %}
+<p class="lede">These papers were chosen to be varied: case reports, trials, reviews and others, from different years. Swap any you would rather not use. Nothing is read, and nothing is charged, until you press Run.</p>
+<div class="cols">
+  <div class="card main-col stack">
+    <div class="items" style="max-height:none">
+      {% for p in papers %}
+      <div class="item"><div class="main"><div class="ttl" style="white-space:normal">{{ p.title }}</div>
+        <div class="sub">{{ p.journal or '' }} {{ p.year or '' }}{% if p.journal or p.year %} · {% endif %}{{ 'Full text' if p.level == 'full_text' else 'Abstract only' }} · {{ (p.chars or 0) // 1000 }}k characters</div></div>
+        <button type="button" class="dec swap" data-paper="{{ p.id }}">Swap</button></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card side-col stack">
+    <h2>Price</h2>
+    {% if est %}
+    <div class="costline"><strong>{{ est.papers }} papers · about {{ money(est.expected) }}</strong><br><span style="margin:0">at most {{ money(est.high) }}; the run stops if it reaches that. About {{ est.minutes }} minutes.</span></div>
+    <label class="check"><input type="checkbox" id="runConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
+    <button type="button" class="btn" id="runBtn" disabled {{ '' if has_key else 'data-nokey=1' }}>Read these papers</button>
+    {% if not has_key %}<div class="hint">No Anthropic API key is set on this computer.</div>{% endif %}
+    {% else %}<p class="plain">The price could not be worked out.</p>{% endif %}
+    <button type="button" class="btn line" id="againBtn">Choose a different sample</button>
+  </div>
+</div>
+
+{% elif state == 'running' %}
+<p class="lede">The sample is being read. This takes a few minutes; you can leave this page open.</p>
+<div class="jobbox" id="jobBox"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+  <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
+
+{% else %}
+<p class="lede">Open a paper, compare each answer with the quote beside it, and mark it. The scorecard updates as you go. Skip anything you cannot judge, or mark it Unsure.</p>
+{% if stale %}<div class="flash err">The template has changed since this sample was read, so these answers come from an older version. Start a new sample to see the current template's answers.</div>{% endif %}
+<div class="review4">
+  <aside class="card plist">
+    <div class="lab">Sample papers</div>
+    {% for p in papers %}
+    <a class="pitem {{ 'on' if loop.index0 == idx else '' }}" href="?paper={{ loop.index0 }}">
+      <span class="pt">{{ p.title }}</span><span class="pc">{{ done_rows.get(p.id, 0) }}/{{ answers_total or 10 }}</span></a>
+    {% endfor %}
+    <button type="button" class="btn line small" id="againBtn" style="margin-top:12px">Start a new sample</button>
+  </aside>
+  <main class="stack">
+    {% if cur %}
+    <div class="card">
+      <h2 style="margin-bottom:4px">{{ cur.title }}</h2>
+      <div class="sub" style="font-size:12px;color:var(--faint)">{{ cur.journal or '' }} {{ cur.year or '' }} · {{ 'Full text' if cur.level == 'full_text' else 'Abstract only' }}
+        {% if cur.source == 'pdf' %} · <a class="lnk" target="_blank" href="/org/{{ org.folder }}/paper/{{ cur.id }}/pdf">Open the PDF</a>{% endif %}
+        {% if cur.pmid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pubmed.ncbi.nlm.nih.gov/{{ cur.pmid }}/">PubMed</a>{% endif %}
+        {% if cur.pmcid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/{{ cur.pmcid }}/">PubMed Central</a>{% endif %}
+        {% if cur.doi %} · <a class="lnk" target="_blank" rel="noopener" href="https://doi.org/{{ cur.doi }}">DOI</a>{% endif %}</div>
+    </div>
+    {% if answers %}
+    {% for c in answers.cards %}
+    <div class="card acard" data-paper="{{ cur.id }}" data-cat="{{ c.id }}">
+      <div class="ahead"><strong>{{ c.label }}</strong>
+        <span class="badge {{ 'ok' if c.status == 'Found' else ('gray' if c.status == 'Not applicable' else 'warn') }}">{{ c.status }}</span>
+        <span class="conf">{{ c.confidence }} confidence</span></div>
+      {% for e in c.entries %}
+      <div class="entry"><div class="etext">{{ e.text or '(no text)' }}</div>
+        {% if e.quote %}<blockquote>“{{ e.quote }}”<cite>{{ e.section }}{% if e.page %}, p.{{ e.page }}{% endif %}
+          {% if e.check == 'verified' %}<span class="qok">quote found in the paper</span>{% elif e.check %}<span class="qbad">quote not matched exactly: check carefully</span>{% endif %}
+          {% if cur.source == 'pdf' and e.page %} · <a class="lnk" target="_blank" href="/org/{{ org.folder }}/paper/{{ cur.id }}/pdf#page={{ e.page }}">open at page {{ e.page }}</a>{% endif %}</cite></blockquote>{% endif %}</div>
+      {% endfor %}
+      {% if not c.entries %}<div class="entry"><div class="etext faint">(no entries)</div></div>{% endif %}
+      {% if c.rationale and c.status != 'Found' %}<div class="why">Why: {{ c.rationale }}</div>{% endif %}
+      <div class="vrow">{% for v in verdicts %}<button type="button" class="dec v {{ 'on' if c.verdict == v else '' }} {{ 'bad' if c.verdict == v and v in ('Wrong', 'Partly wrong') else '' }}" data-v="{{ v }}">{{ v }}</button>{% endfor %}</div>
+      <input type="text" class="note" placeholder="Note: what is wrong or missing, and where in the paper?" value="{{ c.note }}" maxlength="2000">
+    </div>
+    {% endfor %}
+    <div class="card acard" data-paper="{{ cur.id }}" data-cat="_missed">
+      <div class="ahead"><strong>Anything the AI missed in this paper?</strong></div>
+      <input type="text" class="note" placeholder="For example: the paper also reports variant p.R169Q, which was not extracted." value="{{ answers.missed }}" maxlength="2000">
+    </div>
+    {% else %}<div class="card soon"><p>No answers were saved for this paper (the read may have failed).</p></div>{% endif %}
+    {% endif %}
+  </main>
+  <aside class="card score" id="scoreBox">
+    <div class="lab">Scorecard</div>
+    <div id="scoreBody"></div>
+    <div class="scorebtns">
+      <a class="btn line small" href="/org/{{ org.folder }}/sample/{{ smp.id }}/check.xlsx">Download for review</a>
+      <label class="btn line small upload" for="chkFile">Upload reviewed<input type="file" id="chkFile" accept=".xlsx"></label>
+      <div class="filenote" id="chkNote"></div>
+    </div>
+    <div class="hint">Changing the template? Go back to step 3, then start a new sample to see the effect. A new sample costs again.</div>
+  </aside>
+</div>
+<script id="scoreData" type="application/json">{{ score | tojson }}</script>
+{% endif %}
+
+<div class="footer">
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/3">← Extraction Schema</a>
+  <a class="btn" href="/org/{{ org.folder }}/step/5">{{ 'Continue — Review & Launch →' if state == 'done' else 'Skip for now — Review & Launch →' }}</a>
+</div>
+</div>
+<script src="/static/js/step4.js"></script>
+{% endblock %}

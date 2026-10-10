@@ -93,18 +93,7 @@ NON_PAPER_PUBTYPES = {
 }
 NON_PAPER_FILENAME = re.compile(r"suppl|supporting.?information|appendix|poster|slides|table of contents", re.I)
 
-SECTION_KINDS = [
-    ("abstract", re.compile(r"^(abstr|summary$|synopsis)")),
-    ("introduction", re.compile(r"^(introduction|background|overview)")),
-    ("methods", re.compile(r"^(methods?|methodology|materials|patientsand|subjectsand|participantsand|experimental|studydesign|studypopulation)")),
-    ("results", re.compile(r"^(results|findings)")),
-    ("discussion", re.compile(r"^discussion")),
-    ("conclusion", re.compile(r"^(conclusion|concludingremarks)")),
-    ("references", re.compile(r"^(references|bibliography|literaturecited)")),
-    ("acknowledgments", re.compile(r"^(acknowledg|funding|conflict|disclosure|authorcontrib|declaration|competinginterest|dataavailab|ethic)")),
-    ("case", re.compile(r"^(case|clinicalcase|clinicalpresentation|patientpresentation|patientdescription|patientinformation)")),
-]
-LEADING_NUMBERING = re.compile(r"^(?:\d+(?:\.\d+)*[\.\)\|:\-]*|[ivx]+[\.\)\|:])+")
+from pubbank.sections import LEADING_NUMBERING, SECTION_KINDS, section_kind  # noqa: E402,F401
 BAD_TITLE = re.compile(
     r"universit|department|institut|corresponding|received|accepted|copyright|©|doi|http|www\.|@|open access|"
     r"research article|original (article|research)|published|keywords|affiliat|abstract|^figure|^table|license|"
@@ -207,15 +196,6 @@ def title_candidates(md, limit=4):
             if len(out) >= limit:
                 break
     return out
-
-
-def section_kind(heading, prev_kind):
-    key = re.sub(r"\s+", "", heading.lower())
-    key = LEADING_NUMBERING.sub("", key).lstrip("|:.-")
-    for kind, rx in SECTION_KINDS:
-        if rx.match(key):
-            return kind
-    return prev_kind
 
 
 def parse_with_docling(path, tables):

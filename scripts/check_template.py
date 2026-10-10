@@ -32,13 +32,20 @@ def main():
     # regression: core + overlay must reproduce the original complete DADA2 template exactly
     legacy = load_template(LEGACY_SINGLE_TEMPLATE)
     print("  sources:", {k: Path(v).name for k, v in t.get("sources", {}).items()})
-    # Intentional changes since the original single-file template: DADA2 phenotypes became free text (mapped to HPO).
-    INTENTIONAL = {"clinical_features"}
+    # Intentional changes since the original single-file template: DADA2 phenotypes became free text (mapped to HPO);
+    # after the 2026-10-09 hand check, rules were refined for study type (design detail), corresponding authors (email
+    # or linked asterisk counts), treatments (one entry per drug) and reagents (supplement note), plus the Evidence rule.
+    INTENTIONAL = {"clinical_features", "study_type", "corresponding_authors", "treatments", "reagents", "gene_focus"}
     all_same = True
     for key in ("categories", "global_rules", "groups"):
         if key == "categories":
             a_ = [c for c in legacy[key] if c["id"] not in INTENTIONAL]
             b_ = [c for c in t[key] if c["id"] not in INTENTIONAL]
+        elif key == "groups":   # the recheck policy columns are new since the original template
+            strip = lambda gs: {k: {kk: vv for kk, vv in g.items() if kk not in ("recheck", "key_kinds")} for k, g in gs.items()}  # noqa: E731
+            a_, b_ = strip(legacy[key]), strip(t[key])
+        elif key == "global_rules":
+            a_, b_ = [r for r in legacy[key] if r[0] != "Evidence"], [r for r in t[key] if r[0] != "Evidence"]
         else:
             a_, b_ = legacy[key], t[key]
         same = a_ == b_
@@ -50,6 +57,17 @@ def main():
                 for k in a:
                     if a[k] != b[k]:
                         print(f"     {a['id']}.{k}: original={str(a[k])[:90]!r} merged={str(b[k])[:90]!r}")
+    from pubbank.extraction import _wants_recheck
+    pol = {gid: (g["recheck"], g["key_kinds"]) for gid, g in t["groups"].items()}
+    print("  recheck policy per group:", pol)
+    review = {"sections": [{"kind": "front"}, {"kind": "abstract"}]}                   # a paper with no methods/results
+    full = {"sections": [{"kind": "methods"}, {"kind": "results"}, {"kind": "abstract"}]}
+    g1, g2, g3 = (t["groups"][k] for k in ("1", "2", "3"))
+    assert _wants_recheck(g1, full) and _wants_recheck(g1, review), "group 1 (authors) always rechecks"
+    assert not _wants_recheck(g2, full) and _wants_recheck(g2, review), "group 2 rechecks only when methods are missing"
+    assert not _wants_recheck(g3, full) and _wants_recheck(g3, review), "group 3 rechecks only when results/case are missing"
+    assert not _wants_recheck({**g2, "recheck": "never"}, review) and _wants_recheck({**g2, "recheck": "always"}, full)
+    print("  recheck policy logic: OK")
     cf_old = next(c for c in legacy["categories"] if c["id"] == "clinical_features")
     cf_new = next(c for c in t["categories"] if c["id"] == "clinical_features")
     print(f"  changed on purpose: clinical_features feature field {cf_old['fields'][0]['kind']} -> {cf_new['fields'][0]['kind']} (free text, mapped to HPO)")
@@ -78,7 +96,7 @@ def main():
         data = {c["id"]: cat("Not found", [], "Medium", "") for c in group_categories(t, gid)}
         data["extraction_notes"] = ""
         if "study_type" in data:
-            data["study_type"] = cat("Found", [{"value": "Review", "evidence": ev}])
+            data["study_type"] = cat("Found", [{"value": "Review", "detail": "", "evidence": ev}])
             data["gene_focus"] = cat("Found", [{"value": "ADA2 (CECR1)", "evidence": ev}])
             data["all_authors_from_title_page"] = ["A B"]
         if "reagents" in data:

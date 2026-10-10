@@ -82,6 +82,13 @@ def _read_fields(ws, by_id, tab):
         by_id[f["category"]]["fields"].append(f)
 
 
+def _group_from_row(r):
+    policy = _s(r[5]).lower() if len(r) > 5 else ""
+    return {"id": _s(r[0]), "label": _s(r[1]), "kinds": _split(r[2]), "min_chars": _int(r[3]), "page_max": _int(r[4]),
+            "recheck": "never" if policy.startswith("never") else "key_missing" if policy.startswith("only") else "always",
+            "key_kinds": _split(r[6]) if len(r) > 6 else []}
+
+
 def _read_complete_template(wb, path):
     """A workbook with Categories, Entry fields, Global rules and Call groups tabs (the core, or a complete
     single-file template). Not yet validated or versioned."""
@@ -91,8 +98,7 @@ def _read_complete_template(wb, path):
     groups = {}
     for r in wb["Call groups"].iter_rows(min_row=2, values_only=True):
         if _s(r[0]):
-            groups[_s(r[0])] = {"id": _s(r[0]), "label": _s(r[1]), "kinds": _split(r[2]),
-                                "min_chars": _int(r[3]), "page_max": _int(r[4])}
+            groups[_s(r[0])] = _group_from_row(r)
     return {"categories": cats, "global_rules": rules, "groups": dict(sorted(groups.items())), "path": str(path),
             "display_groups": [], "sources": {"template": str(path)}}
 
@@ -161,7 +167,15 @@ def _apply_overlay(t, wb, overlay_path):
         if action != "replace" and kind:
             f["kind"] = kind
 
-    # 4) Custom categories and their entry fields
+    # 4a) Extra call groups (needed when custom categories do not fit the core groups' size limit)
+    for r in rows("Custom call groups"):
+        gid = _s(r[0])
+        if gid in t["groups"]:
+            raise ValueError(f"Overlay 'Custom call groups': group '{gid}' already exists in the core.")
+        t["groups"][gid] = _group_from_row(r)
+    t["groups"] = dict(sorted(t["groups"].items()))
+
+    # 4b) Custom categories and their entry fields
     if "Custom categories" in wb.sheetnames:
         custom = _read_categories(wb["Custom categories"])
         for c in custom:
@@ -232,9 +246,11 @@ def _validate(t):
         if c["include"] and c["call_group"] not in t["groups"]:
             raise ValueError(f"Category '{c['id']}': call group '{c['call_group']}' is not on the Call groups tab.")
     for g in t["groups"].values():
-        bad = [k for k in g["kinds"] if k not in VALID_KINDS]
+        bad = [k for k in g["kinds"] + g.get("key_kinds", []) if k not in VALID_KINDS]
         if bad:
             raise ValueError(f"Call group {g['id']}: unknown section names {bad}; allowed: {sorted(VALID_KINDS)}")
+        if g.get("recheck") == "key_missing" and not g.get("key_kinds"):
+            raise ValueError(f"Call group {g['id']}: 'Only if key sections are missing' needs key sections to be listed.")
     if not any(n == "Context" for n, _ in t["global_rules"]):
         raise ValueError("Global rules tab needs a 'Context' rule.")
 

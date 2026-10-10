@@ -14,3 +14,9 @@ __pycache__/
 .venv/
 venv/
 *.pyc
+
+# Organization contact details, logos and uploaded brand guides stay local
+orgs/*/config.toml
+orgs/*/logo.*
+orgs/*/brand_guide.*
+orgs/*/uploads/

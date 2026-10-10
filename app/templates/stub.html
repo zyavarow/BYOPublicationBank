@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — {{ title }}{% endblock %}
+{% block body %}
+{{ steps(org, step) }}
+<div class="card soon"><h2>{{ title }}</h2><p>This screen is built in a later step. Everything saved on the earlier screens is kept.</p>
+  <p><a class="btn line" href="/org/{{ org.folder }}/step/{{ step - 1 }}">← Back</a></p></div>
+{% endblock %}

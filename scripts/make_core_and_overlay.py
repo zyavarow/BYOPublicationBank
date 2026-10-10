@@ -185,10 +185,13 @@ def main():
         wg.append([n, t])
     style_sheet(wg, [26, 150])
     wc = wb.create_sheet("Call groups")
-    wc.append(base.HEADER_GROUPS)
+    wc.append(base.HEADER_GROUPS + ["Re-read the whole paper when a category is not found? (Always / Only if key sections are missing / Never)",
+                                    "Key sections (a re-read is skipped when the paper has any of these)"])
+    recheck = {"1": ("Always", ""), "2": ("Only if key sections are missing", "methods"),
+               "3": ("Only if key sections are missing", "results; case")}
     for r in base.GROUPS:
-        wc.append(r)
-    style_sheet(wc, [12, 62, 60, 40, 40])
+        wc.append(list(r) + list(recheck[r[0]]))
+    style_sheet(wc, [12, 62, 60, 40, 40, 44, 40])
     write_how_to(wb, [
         "SHARED CORE TEMPLATE (used by every organization)",
         "",

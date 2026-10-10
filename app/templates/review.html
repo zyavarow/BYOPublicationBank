@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — Clean up the bank{% endblock %}
+{% block body %}
+{{ steps(org, 2) }}
+<p class="crumb"><a href="/org/{{ org.folder }}/step/2">← Publication Bank</a></p>
+<h1>Clean up the bank</h1>
+<p class="lede">The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back.</p>
+
+<div class="cols" id="reviewTop" data-folder="{{ org.folder }}">
+  <div class="card main-col stack">
+    <h2>Are the papers about your topic?</h2>
+    <div class="inputbox">
+      <div class="lab">Quick check by words — free</div>
+      <p class="plain">A paper passes if it names the disease (any term below) in its title or abstract, or at least three times in the text. Edit the terms, preview what would be flagged, then apply.</p>
+      <textarea id="terms" rows="2">{{ terms }}</textarea>
+      <div class="hint">Separate terms with semicolons. Include related terms you also want to keep (for example a related enzyme or pathway), or those papers will be flagged.</div>
+      <div class="actions"><span class="count" id="kwInfo"></span>
+        <span><button type="button" class="btn small line" id="kwPreview">Preview</button> <button type="button" class="btn small" id="kwApply">Apply</button></span></div>
+      <div class="kwlist" id="kwList"></div>
+    </div>
+    <div class="inputbox">
+      <div class="lab">Smarter check by AI — costs money</div>
+      <p class="plain">Claude reads each paper's title and abstract against your description of the disease. It also catches look-alikes that share a name with the disease, which the word check cannot. It marks papers on topic, worth a look, or off topic, with a one-line reason.</p>
+      <div class="costline"><strong>{{ estimate.papers }} papers · about {{ money(estimate.expected) }}</strong>
+        <span>(at most {{ money(estimate.high) }}; the run stops if it reaches that)</span></div>
+      <label class="check"><input type="checkbox" id="aiConfirm"> I understand this will cost about {{ money(estimate.expected) }}, and no more than {{ money(estimate.high) }}.</label>
+      <div class="actions"><span class="count">{% if not has_key %}No Anthropic API key is set on this computer.{% endif %}</span>
+        <button type="button" class="btn small" id="aiGo" disabled {{ '' if has_key and estimate.papers else 'data-nokey=1' }}>Run AI check</button></div>
+    </div>
+    <div class="jobbox" id="jobBox" hidden>
+      <div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+      <div class="bar"><div class="fill" id="jobFill"></div></div>
+      <div class="jobresult" id="jobResult"></div>
+    </div>
+  </div>
+  <div class="card side-col stack">
+    <h2>Prefer a spreadsheet?</h2>
+    <p class="plain">Download everything that was set aside, with the reason for each. Type Keep or Exclude in the last column, then upload the file again. Useful for sharing with the organization.</p>
+    <a class="btn small" style="display:inline-flex;align-items:center;justify-self:start" href="/org/{{ org.folder }}/bank/set-aside.xlsx">Download spreadsheet</a>
+    <div class="logo-row">
+      <label class="btn small upload line" for="decFile">Upload reviewed spreadsheet<input type="file" id="decFile" accept=".xlsx"></label>
+      <span class="filenote" id="decNote"></span>
+    </div>
+    <div class="summary" id="bankSummary"><strong>{{ bank.inbank + bank.abstract }}</strong> papers in the bank now · {{ counts.decided }} decided by you</div>
+  </div>
+</div>
+
+<div class="card listcard" style="margin-top:24px">
+  <div class="tabs-pills">
+    {% for key, (label, _c, _h) in groups.items() %}{% if counts[key] or key == g %}
+    <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
+  </div>
+  <p class="plain" style="margin:0">{{ groups[g][2] }}</p>
+  <div class="items" style="max-height:none">
+    {% for it in items %}
+    <div class="item" data-id="{{ it.id }}" data-decision="{{ it.decision }}">
+      <div class="main"><div class="ttl" style="white-space:normal">{{ it.title }}</div>
+        <div class="sub" style="white-space:normal">{{ it.meta }}{% if it.meta %} · {% endif %}<span class="src">{{ it.source }}</span>
+          {% if it.why %} · {{ it.why }}{% if it.method == 'ai' %} (AI check){% endif %}{% endif %}
+          {% if it.other %}<br>Looks like: <em>{{ it.other }}</em>{% endif %}</div></div>
+      <div class="badge {{ 'ok' if it.in_bank else 'gray' }}" data-role="state">{{ 'In bank' if it.in_bank else 'Set aside' }}</div>
+      <div class="decide">
+        {% if it.can_keep %}<button type="button" class="dec {{ 'on' if it.decision == 'Keep' else '' }}" data-d="Keep">Keep</button>{% endif %}
+        <button type="button" class="dec {{ 'on bad' if it.decision == 'Exclude' else '' }}" data-d="Exclude">Exclude</button>
+        {% if not it.can_keep %}<span class="cannot">Nothing usable to keep</span>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">Nothing here. {% if g in ('offtopic', 'borderline') %}Run a topic check above.{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% if pages > 1 %}
+  <div class="pager">
+    {% if p > 1 %}<a href="?g={{ g }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
+    <span>Page {{ p }} of {{ pages }} · {{ total }} papers</span>
+    {% if p < pages %}<a href="?g={{ g }}&p={{ p + 1 }}">Next →</a>{% else %}<span></span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+<div class="footer">
+  <span></span>
+  <a class="btn" href="/org/{{ org.folder }}/step/2">Done — back to the Publication Bank</a>
+</div>
+<script src="/static/js/review.js"></script>
+{% endblock %}

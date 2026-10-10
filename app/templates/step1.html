@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_steps.html" import steps %}
+{% block title %}Setup — Organization &amp; Branding{% endblock %}
+{% block body %}
+{{ steps(org, 1) }}
+<h1>Set up your organization's portal</h1>
+<p class="lede">Tell us about your organization and how you would like your portal to look. You can change any of this later.</p>
+<form method="post" enctype="multipart/form-data" action="/org/{{ org.folder }}/step/1">
+<div class="cols">
+  <div class="card main-col stack">
+    <div><label class="lab" for="name">Organization name</label>
+      <input type="text" id="name" name="name" value="{{ org.name }}" maxlength="120" required></div>
+    <div><label class="lab" for="description">One-line description</label>
+      <input type="text" id="description" name="description" value="{{ org.description }}" maxlength="240"></div>
+    <div><label class="lab">Logo</label>
+      <div class="logo-row">
+        <div class="avatar" id="logoAvatar">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="Logo">{% else %}{{ org.initials }}{% endif %}</div>
+        <label class="btn small upload" for="logo">{% if org.logo %}Replace logo{% else %}Upload logo{% endif %}
+          <input type="file" name="logo" id="logo" accept=".svg,.png,image/svg+xml,image/png"></label>
+        <span class="filenote" id="logoText">{% if org.logo %}Saved ({{ org.logo }}){% else %}SVG or PNG, up to 2 MB. No logo yet? A placeholder is fine for now.{% endif %}</span>
+      </div>
+      <div class="swatches" id="logoSwatches" hidden></div></div>
+    <div><label class="lab">Brand guide (PDF)</label>
+      <div class="logo-row">
+        <label class="btn small upload" for="brand_guide">{% if org.brand_guide %}Replace brand guide{% else %}Upload brand guide (PDF){% endif %}
+          <input type="file" name="brand_guide" id="brand_guide" accept=".pdf,application/pdf"></label>
+        <span class="filenote" id="guideText">{% if org.brand_guide %}Saved. Kept for reference; colors are not read from PDFs yet.{% else %}Optional. Kept for reference; colors are not read from PDFs yet.{% endif %}</span>
+      </div></div>
+    <div><label class="lab" for="website">Website</label>
+      <div class="web-row">
+        <input type="url" id="website" name="website" value="{{ org.website }}" placeholder="https://www.their-organization.org">
+        <button class="btn small" type="button" id="pullColors">Pull colors</button>
+      </div>
+      <div class="hint" id="pullHint">We read the colors from the logo on your website. It is a best guess, so check the result against your brand guide, or type your hex codes into Primary and Accent below.</div>
+      <div class="swatches" id="swatches" hidden></div></div>
+    <div><label class="lab">Brand colors</label>
+      <div class="hint" style="margin:-2px 0 8px">If you know your brand's colors, type their hex codes into Primary and Accent below (a hex code is a # followed by six characters, for example #2B6E5E). You can also click a color square to pick one.</div>
+      <div class="colors">
+        <div class="color"><input type="color" id="primaryPick" value="{{ org.primary }}"><div><div class="cap">Primary</div>
+          <input type="text" id="primary" name="primary" value="{{ org.primary }}" maxlength="7"></div></div>
+        <div class="color"><input type="color" id="accentPick" value="{{ org.accent }}"><div><div class="cap">Accent</div>
+          <input type="text" id="accent" name="accent" value="{{ org.accent }}" maxlength="7"></div></div>
+      </div></div>
+  </div>
+  <div class="side-col">
+    <div class="lab" style="margin-bottom:10px">Live preview</div>
+    <div class="preview">
+      <div class="head"><div class="avatar sm" id="pvAvatar">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</div>
+        <span class="nm" id="pvName">{{ org.name }}</span></div>
+      <div class="tabs"><span class="on" id="pvTab">Search</span><span>Library</span><span>About</span></div>
+      <div class="body"><div class="ttl">Ask a research question</div>
+        <div class="q" id="pvQ">What treatments have been reported for patients?</div>
+        <div class="go" id="pvGo">Search</div></div>
+    </div>
+    <p class="note">This is how your portal will look to the people who use it.</p>
+  </div>
+</div>
+<div class="footer">
+  <a class="btn ghost" href="/">Cancel</a>
+  <button class="btn" type="submit" name="action" value="continue">Save &amp; continue — Publication Bank →</button>
+</div>
+</form>
+<script src="/static/js/step1.js"></script>
+{% endblock %}

@@ -6,6 +6,7 @@ default $1.00), only papers you name (--only / --list), only papers marked in_ba
   .venv\\Scripts\\python.exe scripts\\extract.py --org "EXD Papers" --list data\\slices\\test15.txt --run-label v2test --max-cost 2
 """
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -51,7 +52,7 @@ PAPER_COLS = ["id", "filename", "title", "extracted_title", "journal", "year", "
 
 # Tokens the response schema adds to each request (measured on the API, per call group). The schema and the system
 # prompt are cached after the first request, so they are billed at the cache-read rate afterwards.
-SCHEMA_TOKENS = {"1": 2900, "2": 4000, "3": 3000}
+SCHEMA_TOKEN_PER_CHAR = 0.48   # measured: 6,059 / 8,537 / 6,255 schema characters = 2,900 / 4,000 / 3,000 tokens
 EXPECTED_OUT, HIGH_OUT = 3000, 5000   # output tokens per paper (all groups), expected and high case
 
 
@@ -75,7 +76,7 @@ def estimate(client, conn, ctx, papers, model, org_id):
             total = client.messages.count_tokens(model=model, system=ctx.prompts[c["group"]],
                                                  messages=[{"role": "user", "content": c["text"]}]).input_tokens
             text_tokens = total - sys_tokens
-            cached = sys_tokens + SCHEMA_TOKENS[c["group"]]
+            cached = sys_tokens + int(len(json.dumps(ctx.models[c["group"]].model_json_schema())) * SCHEMA_TOKEN_PER_CHAR)
             first_calls.setdefault(c["group"], cached)
             paper_text_tokens += text_tokens
             tot_text += text_tokens
@@ -174,7 +175,7 @@ def main():
                 cats = [v for k, v in res["result"].items() if isinstance(v, dict) and "status" in v]
                 mix = " found {}/ not found {}/ N/A {}".format(*[sum(1 for c in cats if c["status"] == s)
                                                                   for s in ("Found", "Not found", "Not applicable")])
-                n_req = sum(1 for c in res["result"]["_meta"]["calls"] if "skipped" not in c)
+                n_req = sum(1 for c in res["result"]["_meta"]["calls"] if "status" in c)
                 mix += f" ({n_req} req)"
             print(f"[{i}/{len(todo)}] {res['status']:<9} in {u['input_tokens'] + u['cache_read_tokens'] + u['cache_write_tokens']:>6} "
                   f"out {u['output_tokens']:>5} tok  ${res['cost_usd']:.4f}  {res['seconds']:.0f}s {quotes}{mix}  {p['filename'][:40]}"

@@ -1,0 +1,29 @@
+id,question,expected_paper_ids,kind,note
+1,How does ADA2 deficiency lead to neutrophil extracellular traps and TNF production?,172,specific,NETosis paper
+2,What did single-cell RNA sequencing of monocytes show about DADA2 pathogenesis?,461,specific,scRNA-seq paper
+3,Is there a Chinese patient with a novel ADA2 mutation?,532;531,specific,two case reports from China
+4,What was the first reported case of DADA2 in Oman?,66,specific,Oman case report
+5,Can DADA2 be mistaken for Behçet's disease?,126;33,specific,Behçet mimicry
+6,Was ADA2 deficiency mistaken for idiopathic multicentric Castleman disease?,51,specific,Castleman case
+7,Can ADA2 deficiency cause pure red cell aplasia that looks like Diamond Blackfan anemia?,495,specific,DBA mimic
+8,What did an observational analysis of a 60-patient DADA2 cohort find?,438,specific,60 patient cohort
+9,How is bone marrow failure described in patients with ADA2 deficiency?,43;384;555,specific,bone marrow papers
+10,What did nailfold videocapillaroscopy show in DADA2 patients?,145,specific,capillaroscopy
+11,Is ADA2 linked to liver fibrosis in fatty liver disease?,512,specific,off-disease use of ADA2
+12,How does human ADA2 affect monocyte differentiation into macrophages?,535,specific,2010 ADA2 function paper
+13,Was there a DADA2 patient with cerebral aneurysms and transient ischemic attacks?,59,specific,case report
+14,How do ADA1 and ADA2 differ in cancers?,252;408,specific,pan-cancer analysis
+15,What does a systematic literature review say about the range of DADA2 phenotypes?,441,specific,PRISMA review
+16,Why do some ADA2 variants cause vasculitis and others red cell aplasia?,198,specific,genotype-phenotype
+17,Has recurrent Hodgkin lymphoma been reported with ADA2 deficiency?,372,specific,case report
+18,How is ADA2-deficient polyarteritis nodosa diagnosed and managed?,349;376,broad,review articles
+19,Do ADA2-deficient cells show more cell death or metabolic changes?,555,specific,2026 cell study
+20,Is PEGylated ADA2 proposed as a cancer immunotherapy?,408,specific,abstract A84
+21,Which Iranian patients with ADA2 deficiency have been described and how were they treated?,320,specific,Iranian case report and treatment review
+22,What were the histopathology findings in adult siblings with misdiagnosed DADA2?,433,specific,siblings
+23,Which activation domains physically interact with the yeast transcriptional adaptor ADA2?,138,off-topic,yeast ADA2 (different gene): should still be findable
+24,Which families first showed that mutant ADA2 causes polyarteritis nodosa?,456,specific,2014 discovery paper
+25,How is the diagnosis of DADA2 confirmed?,187;349;376;425,broad,enzyme activity plus genetics
+26,Which treatments are used for patients with DADA2?,349;376;394;425,broad,TNF inhibitors etc.
+27,CECR1 mutation with severe hematological involvement,384,exact-term,old gene name
+28,What does the CECR1 gene do in cat eye syndrome versus DADA2?,126;384;394,broad,alias question

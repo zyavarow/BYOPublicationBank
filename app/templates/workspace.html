@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Your Workspace — {{ org.name }}{% endblock %}
+{% block topbar %}
+<div class="topbar wsbar">
+  <a class="wsbrand" href="/org/{{ org.folder }}/workspace">
+    <span class="avatar sm" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
+    <span class="wsname">{{ org.name }}</span><span class="wspriv">Private — visible only to you</span></a>
+  <div class="right"><a class="exit" href="/org/{{ org.folder }}/step/5">← Setup</a></div>
+</div>
+{% endblock %}
+{% block pageclass %} wspage{% endblock %}
+{% block body %}
+<div id="wsRoot" data-folder="{{ org.folder }}" data-depth="{{ org.search_depth }}" data-format="{{ org.answer_format }}" style="--primary:{{ org.primary }};--accent:{{ org.accent }}">
+<div class="wsnav"><span class="on">● Your workspace</span><span class="arrow">→</span><span class="off" title="Built in a later step">○ Shareable view</span><span class="arrow">→</span><span class="off" title="Built in a later step">○ Embed</span></div>
+
+<div class="wssearch">
+  <div class="qrow"><input type="text" id="question" maxlength="1000" placeholder="Ask a question about the research in {{ org.name }}'s library…" autofocus>
+    <button type="button" class="btn go" id="goBtn">Search</button></div>
+  {% if facets %}
+  <div class="chiprow" id="chipRow">{% for f in facets %}<button type="button" class="fchip" data-cid="{{ f.id }}" data-label="{{ f.label }}">{{ f.label }}</button>{% endfor %}</div>
+  <div class="facetpanel" id="facetPanel" hidden></div>
+  <div class="hint" style="margin:6px 0 0">Filters use what the AI extracted from each paper{% if extracted < bank.inbank %} ({{ extracted }} of {{ bank.inbank + bank.abstract }} papers read so far){% endif %}.</div>
+  {% endif %}
+  <div class="optrow">
+    <span class="optlab">Answering as</span>
+    {% for key, label in roles.items() %}<button type="button" class="seg role {{ 'on' if key == 'scientist' }}" data-role="{{ key }}">{{ label }}</button>{% endfor %}
+    <span class="draft">draft roles — to workshop</span>
+  </div>
+  <div class="optrow">
+    {% if choose_depth %}<span class="optlab">Depth</span>
+    {% for d in depths %}<button type="button" class="seg depth {{ 'on' if d.key == org.search_depth }}" data-depth="{{ d.key }}" title="Estimated cost per question">{{ d.label }} <small>≈ ${{ '%.2f'|format(d.cost) }}</small></button>{% endfor %}
+    {% else %}<span class="optlab">Depth</span><span class="seg on" title="Set by the administrator">{{ org.search_depth|capitalize }} (set by your administrator)</span>{% endif %}
+    <span class="optlab" style="margin-left:14px">Wording</span>
+    <button type="button" class="seg fmt {{ 'on' if org.answer_format != 'technical' }}" data-fmt="plain">Plain language</button>
+    <button type="button" class="seg fmt {{ 'on' if org.answer_format == 'technical' }}" data-fmt="technical">Technical</button>
+    <label class="check freechk"><input type="checkbox" id="freeOnly"> Passages only (free, no AI)</label>
+  </div>
+</div>
+
+<div class="wscols">
+  <div class="wsmain" id="results">
+    {% if idx.chunks == 0 %}
+    <div class="callout warn"><strong>The search index has not been built yet.</strong> The library needs to be cut into passages and prepared for meaning-based search before questions can be answered.
+      <div style="margin-top:8px"><button type="button" class="btn small" id="buildIdx">Build the search index</button> <span class="filenote">Takes a few hours for a few hundred papers; faster when the computer is plugged in.</span></div></div>
+    {% elif idx.embedded < idx.chunks %}
+    <div class="callout warn"><strong>Meaning-based search is {{ (100 * idx.embedded / idx.chunks)|round|int }}% ready</strong> ({{ idx.embedded }} of {{ idx.chunks }} passages prepared). Until it finishes, answers rely more on exact words and may miss relevant papers.
+      <span id="idxNote" class="filenote"></span></div>
+    {% endif %}
+    {% if not has_key %}<div class="callout warn">No Anthropic API key is set on this computer, so only “Passages only” search works.</div>{% endif %}
+    <div class="jobbox" id="jobBox" hidden><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+      <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
+    <div id="answer"></div>
+    <div id="empty" class="emptybox">
+      <h2>Ask about the research</h2>
+      <p>Questions are answered from the {{ bank.inbank + bank.abstract }} papers in this library, with every statement tied to the passage it came from. Try:</p>
+      <div class="suggest">
+        <button type="button" class="sg">What treatments have been reported, and how well do they work?</button>
+        <button type="button" class="sg">Which variants have been described and what symptoms did they cause?</button>
+        <button type="button" class="sg">Which papers used patient-derived cells?</button>
+      </div>
+    </div>
+  </div>
+  <aside class="wsside">
+    <div class="card sidecard"><div class="sidehd">This organization</div>
+      <div class="sidebody">{{ bank.inbank + bank.abstract }} papers · {{ fields }} schema fields<br>{{ idx.chunks }} searchable passages{% if extracted %}<br>{{ extracted }} papers with extracted fields{% endif %}</div>
+      <a class="lnk" href="/org/{{ org.folder }}/step/3">Manage schema →</a></div>
+    <div class="card sidecard"><div class="sidehd">Spent on questions today</div>
+      <div class="sidebody"><strong id="spent">${{ '%.2f'|format(today) }}</strong> of ${{ '%.2f'|format(cap) }} daily limit</div></div>
+    <div class="card sidecard"><div class="sidehd">Recent searches</div>
+      <div id="recent">{% for r in recent %}<a class="recent" href="#" data-id="{{ r.id }}">{{ r.question }}</a>{% else %}<div class="sidebody faint">None yet.</div>{% endfor %}</div></div>
+  </aside>
+</div>
+</div>
+<script src="/static/js/workspace.js"></script>
+{% endblock %}

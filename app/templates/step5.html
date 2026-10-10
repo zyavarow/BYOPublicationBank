@@ -42,16 +42,27 @@
   <div class="filenote" id="defNote"></div>
 </div>
 
-<div class="card stack" style="max-width:900px;margin-top:20px">
+<div class="card stack" style="max-width:900px;margin-top:20px" id="runCard">
   <h2>Read the whole library</h2>
-  <p class="plain" style="margin:0">Every paper in the bank is read once with the schema above. Work out the price first; nothing is read or charged by this button.</p>
-  <div><button type="button" class="btn small line" id="priceBtn" {{ 'disabled' if not view }}>Work out the price</button> <span class="filenote" id="priceNote"></span></div>
-  <div class="inputbox" id="priceBox" hidden>
-    <table class="stbl" id="priceTbl"></table>
-    <div class="hint" id="priceHint"></div>
+  <p class="plain" style="margin:0">Every paper in the bank is read once with the schema above, using Anthropic's half-price Batch service. Nothing is read or charged until you press Start.</p>
+  <div id="runIdle">
+    <div><button type="button" class="btn small line" id="priceBtn" {{ 'disabled' if not view }}>Work out the price</button> <span class="filenote" id="priceNote"></span></div>
+    <div class="inputbox" id="priceBox" hidden style="margin-top:12px">
+      <table class="stbl" id="priceTbl"></table>
+      <div class="hint" id="priceHint"></div>
+      <div class="web-row" style="margin-top:12px;align-items:center"><label class="lab" for="limit" style="margin:0">Spending limit $</label>
+        <input type="number" id="limit" min="1" step="1" style="max-width:110px"></div>
+      <div class="hint">The run stops and submits nothing more if the cost so far reaches this. Your Anthropic workspace may have its own, lower monthly limit: check it first.</div>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="runConfirm"> I understand this will cost about <span id="confExp"></span>, and I want to read all <span id="confN"></span> papers.</label>
+      <div class="actions" style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn" id="startBtn" disabled>Start reading the library</button></div>
+    </div>
   </div>
-  <div><button type="button" class="btn" disabled>Start reading the library</button>
-    <span class="filenote" style="margin-left:10px">The full-library reader (with the half-price Batch service) is the next piece to be built, so this is switched off for now.</span></div>
+  <div id="runLive" hidden class="inputbox">
+    <div class="jobhead"><strong id="runMsg">Starting…</strong><span id="runMeta"></span></div>
+    <div class="bar indet" id="runBar"><div class="fill" id="runFill" style="width:0"></div></div>
+    <div class="hint" id="runHint">Anthropic runs the batch; each round usually finishes within an hour (it can take up to a day). You can close this window: the app picks the run up again when you reopen it.</div>
+    <div class="actions" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="filenote" id="runDone"></span><button type="button" class="btn small line" id="cancelBtn">Cancel the run</button></div>
+  </div>
 </div>
 </div>
 
@@ -69,19 +80,52 @@
     $("defNote").textContent = r.ok ? "Saved." : "Could not save.";
   };
   for (const r of document.querySelectorAll("input[name=fmt], input[name=depth]")) r.addEventListener("change", save);
+  const money = (x) => "$" + x.toFixed(x < 10 ? 2 : 0);
+  let est = null;
   $("priceBtn").addEventListener("click", async () => {
     $("priceBtn").disabled = true; $("priceNote").textContent = "Counting… this takes up to a minute for a large library.";
     const r = await fetch(`/org/${folder}/launch/estimate`, { method: "POST" });
     const d = await r.json();
     $("priceBtn").disabled = false;
     if (!r.ok) { $("priceNote").textContent = d.error; return; }
-    $("priceNote").textContent = "";
+    est = d; $("priceNote").textContent = "";
     $("priceBox").hidden = false;
-    $("priceTbl").innerHTML = `<tr><th>${d.papers} papers · ${d.requests} reading requests</th><th>Price</th><th>Time</th></tr>` +
-      `<tr><td>Standard service</td><td>about $${d.expected.toFixed(0)} (at most $${d.high.toFixed(0)})</td><td>about ${d.hours} hours</td></tr>` +
-      `<tr><td>Batch service (half price)</td><td>about $${(d.expected / 2).toFixed(0)} (at most $${(d.high / 2).toFixed(0)})</td><td>results within a day, often much sooner</td></tr>`;
-    $("priceHint").textContent = "Estimated from the size of your papers. It assumes every paper needs all reading passes, so it leans high. A spending limit will be set before anything runs.";
+    $("priceTbl").innerHTML = `<tr><th>${d.papers} papers · ${d.requests} reading requests</th><th>Price</th></tr>` +
+      `<tr><td>Batch service (used here, half price)</td><td>about ${money(d.expected)}, at most ${money(d.high)}</td></tr>` +
+      `<tr><td>Standard service, for comparison</td><td>about ${money(d.standard_expected)}</td></tr>`;
+    $("priceHint").textContent = "Estimated from the size of your papers. It assumes every paper needs all reading passes, so it leans high. 'At most' assumes no discount from re-used instructions.";
+    $("limit").value = Math.ceil(d.high); $("confExp").textContent = money(d.expected); $("confN").textContent = d.papers;
   });
+  $("runConfirm").addEventListener("change", (e) => ($("startBtn").disabled = !e.target.checked));
+  $("startBtn").addEventListener("click", async () => {
+    $("startBtn").disabled = true;
+    const r = await fetch(`/org/${folder}/run/start`, { method: "POST", body: new URLSearchParams({ limit: $("limit").value, confirm: "yes" }) });
+    const d = await r.json();
+    if (!r.ok) { $("priceNote").textContent = d.error; $("runConfirm").checked = false; return; }
+    poll();
+  });
+  $("cancelBtn").addEventListener("click", async () => {
+    if (!confirm("Cancel the run? Anything Anthropic has already processed is still charged.")) return;
+    await fetch(`/org/${folder}/run/cancel`, { method: "POST" });
+    poll();
+  });
+  let timer = null;
+  async function poll() {
+    clearTimeout(timer);
+    let run = null;
+    try { run = (await (await fetch(`/org/${folder}/run/status`)).json()).run; } catch (e) { timer = setTimeout(poll, 15000); return; }
+    if (!run) return;
+    $("runLive").hidden = false; $("runIdle").hidden = run.status === "running";
+    const mins = Math.round((Date.now() - new Date(run.started)) / 60000);
+    $("runMsg").textContent = run.message || "Working…";
+    $("runMeta").textContent = `${run.papers} papers · started ${mins < 1 ? "just now" : mins + " min ago"} · cost so far ${money(run.cost)} of ${money(run.limit)} limit`;
+    const live = run.status === "running";
+    $("runBar").classList.toggle("indet", live); $("runFill").style.width = live ? "" : "100%";
+    $("cancelBtn").hidden = !live;
+    $("runDone").textContent = run.status === "done" ? "Finished. The answers are saved and ready for the workspace." : run.status === "running" ? "" : "";
+    if (live) timer = setTimeout(poll, 20000);
+  }
+  poll();
 })();
 </script>
 {% endblock %}

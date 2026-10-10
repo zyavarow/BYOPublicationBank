@@ -1,6 +1,7 @@
 """Research Portal Setup Kit: local web app (setup wizard for an organization's portal). Runs on this computer only (127.0.0.1)."""
 import os
 import re
+import threading
 import time
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from app.colors import logo_colors, pull_colors  # noqa: E402
-from pubbank import bank, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, sources, topic  # noqa: E402
+from pubbank import bank, batch_run, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -814,6 +815,10 @@ def step5(request: Request, folder: str):
                  approved=bool(v) and org["schema_approved"] == v["version"])
 
 
+def _library_ids(conn, oid):
+    return [r[0] for r in conn.execute("SELECT id FROM papers WHERE org_id = %s AND in_bank AND parse_status = 'ok' ORDER BY id", (oid,))]
+
+
 @app.post("/org/{folder}/launch/estimate")
 def launch_estimate(folder: str):
     org = _org_or_404(folder)
@@ -821,12 +826,67 @@ def launch_estimate(folder: str):
         return JSONResponse({"error": "Set up the extraction schema first."}, status_code=400)
     with connect() as conn:
         oid = _org_id(conn, org)
-        ids = [r[0] for r in conn.execute("SELECT id FROM papers WHERE org_id = %s AND in_bank AND parse_status = 'ok' ORDER BY id", (oid,))]
+        ids = _library_ids(conn, oid)
         if not ids:
             return JSONResponse({"error": "There are no papers in the bank yet."}, status_code=400)
-        est = samples.estimate(conn, folder, ids)
-    est["hours"] = max(1, round(len(ids) * 40 / 3 / 3600, 1))
+        est = batch_run.estimate(conn, folder, ids)
     return est
+
+
+@app.post("/org/{folder}/run/start")
+def run_start(folder: str, limit: float = Form(...), confirm: str = Form("")):
+    org = _org_or_404(folder)
+    if org is None or not samples.template_path(folder):
+        return JSONResponse({"error": "Set up the extraction schema first."}, status_code=400)
+    if confirm != "yes":
+        return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    v = schema_edit.view(folder)
+    if org["schema_approved"] != v["version"]:
+        return JSONResponse({"error": "Approve the extraction schema first (step 3). The schema was changed since it was approved."}, status_code=400)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        if batch_run.active(conn, oid):
+            return JSONResponse({"error": "A run is already in progress for this organization."}, status_code=409)
+        ids = _library_ids(conn, oid)
+        est = batch_run.estimate(conn, folder, ids)
+        if limit < est["expected"]:
+            return JSONResponse({"error": f"The spending limit is below the expected cost (${est['expected']:.2f}). Raise it, or the run would stop partway."}, status_code=400)
+        run_id = batch_run.create(conn, oid, folder, ids, round(limit, 2))
+    threading.Thread(target=batch_run.start, args=(folder, run_id), daemon=True).start()
+    return {"run": run_id, "estimate": est}
+
+
+@app.get("/org/{folder}/run/status")
+def run_status(folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        r = batch_run.latest(conn, oid)
+    if r and r["status"] == "running":
+        threading.Thread(target=batch_run.advance, args=(r["id"],), daemon=True).start()      # check Anthropic now, without making the page wait
+    return {"run": r}
+
+
+@app.post("/org/{folder}/run/cancel")
+def run_cancel(folder: str):
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    with connect() as conn:
+        rid = batch_run.active(conn, _org_id(conn, org))
+    if rid:
+        batch_run.cancel(rid)
+    return {"ok": True}
+
+
+@app.on_event("startup")
+def start_watcher():
+    """Keep any running batch moving, even if the page is closed."""
+    threading.Thread(target=batch_run.watch_forever, daemon=True).start()
 
 
 @app.get("/org/{folder}/step/{n}", response_class=HTMLResponse)

@@ -213,3 +213,111 @@ def logo_colors(data, ext):
         if not any(_close(col, c["color"]) for c in target):
             target.append({"color": col, "why": "from the logo", "neutral": target is neutral})
     return (colored + neutral)[:5]
+
+
+# ---------------------------------------------------------------------------------------------- brand guide PDFs
+RGB_TEXT = re.compile(r"R\s*[:=]?\s*(\d{1,3})\s*[,/ ]\s*G\s*[:=]?\s*(\d{1,3})\s*[,/ ]\s*B\s*[:=]?\s*(\d{1,3})|RGB\W{0,3}(\d{1,3})\s*[,/ ]\s*(\d{1,3})\s*[,/ ]\s*(\d{1,3})", re.I)
+CMYK_TEXT = re.compile(r"C\s*[:=]?\s*(\d{1,3})\s*[,/ ]\s*M\s*[:=]?\s*(\d{1,3})\s*[,/ ]\s*Y\s*[:=]?\s*(\d{1,3})\s*[,/ ]\s*K\s*[:=]?\s*(\d{1,3})|CMYK\W{0,3}(\d{1,3})\s*[,/ ]\s*(\d{1,3})\s*[,/ ]\s*(\d{1,3})\s*[,/ ]\s*(\d{1,3})", re.I)
+OP_RGB = re.compile(rb"([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+rg\b")
+OP_CMYK = re.compile(rb"([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+k\b")
+PRIMARY_WORDS = re.compile(r"primary|main colou?r|brand colou?r|core colou?r", re.I)
+ACCENT_WORDS = re.compile(r"accent|secondary|highlight|supporting", re.I)
+
+
+def _hex_of(r, g, b):
+    return "#%02X%02X%02X" % tuple(max(0, min(255, int(round(v)))) for v in (r, g, b))
+
+
+def _cmyk(c, m, y, k):
+    c, m, y, k = (min(100.0, float(v)) / 100.0 for v in (c, m, y, k))
+    return _hex_of(255 * (1 - c) * (1 - k), 255 * (1 - m) * (1 - k), 255 * (1 - y) * (1 - k))
+
+
+def guide_colors(data):
+    """Brand colors from a brand-guide PDF. Returns {primary, accent, candidates:[{color, why}], message}.
+    Order of trust: colors written out in the text (hex, RGB or CMYK, especially next to the words primary / accent), then the fill colors
+    the PDF's graphics use, then the dominant colors of the rendered pages."""
+    import io
+
+    from pypdf import PdfReader
+    try:
+        reader = PdfReader(io.BytesIO(data))
+    except Exception:
+        return {"message": "That PDF could not be read.", "candidates": []}
+    pages = reader.pages[:40]
+    found = []              # (color, why, role)
+
+    def role_near(text, pos):
+        """'primary' or 'accent' if one of those words sits just before the color; the closest word wins."""
+        window = text[max(0, pos - 90):pos + 10]
+        best = [(m.end(), "primary") for m in PRIMARY_WORDS.finditer(window)] + [(m.end(), "accent") for m in ACCENT_WORDS.finditer(window)]
+        return max(best)[1] if best else ""
+    for pg in pages:
+        try:
+            text = pg.extract_text() or ""
+        except Exception:
+            continue
+        for m in HEX.finditer(text):
+            if len(m.group(1)) in (6, 8):
+                found.append((_hex6(m.group(1)), "written in the guide", role_near(text, m.start())))
+        for m in RGB_TEXT.finditer(text):
+            v = [x for x in m.groups() if x is not None][:3]
+            if all(int(x) <= 255 for x in v):
+                found.append((_hex_of(*map(int, v)), "RGB value written in the guide", role_near(text, m.start())))
+        for m in CMYK_TEXT.finditer(text):
+            v = [x for x in m.groups() if x is not None][:4]
+            if all(int(x) <= 100 for x in v):
+                found.append((_cmyk(*map(int, v)), "CMYK value written in the guide (converted)", role_near(text, m.start())))
+    written = [f for f in found if _brandish(f[0])]
+    if written:
+        out = []
+        for col, why, role in written:
+            if not any(_close(col, c["color"]) for c in out):
+                out.append({"color": col, "why": why, "role": role})
+        primary = next((c["color"] for c in out if c["role"] == "primary"), None)
+        accent = next((c["color"] for c in out if c["role"] == "accent" and c["color"] != primary), None)
+        if not primary:
+            primary = out[0]["color"]
+        msg = "Colors written in the guide."
+        if not accent and len(out) > 1:
+            msg += " Pick an accent below."
+        return {"primary": primary, "accent": accent, "candidates": out[:8], "message": msg + " Check them against the guide."}
+    # graphics: fill colors used in the page drawing instructions
+    counts = Counter()
+    for pg in pages:
+        try:
+            raw = pg.get_contents().get_data()
+        except Exception:
+            continue
+        for m in OP_RGB.finditer(raw):
+            r, g, b = (float(x) for x in m.groups())
+            if max(r, g, b) <= 1.0:
+                counts[_hex_of(r * 255, g * 255, b * 255)] += 1
+        for m in OP_CMYK.finditer(raw):
+            c, mm, y, k = (float(x) for x in m.groups())
+            if max(c, mm, y, k) <= 1.0:
+                counts[_cmyk(c * 100, mm * 100, y * 100, k * 100)] += 1
+    out = []
+    for col, n in counts.most_common(40):
+        if _brandish(col) and not any(_close(col, c["color"]) for c in out):
+            out.append({"color": col, "why": f"used {n} times in the guide's graphics", "role": ""})
+    if not out:                                       # last resort: what the pages look like
+        try:
+            import pypdfium2 as pdfium
+            pdf = pdfium.PdfDocument(data)
+            tally = Counter()
+            for i in range(min(len(pdf), 6)):
+                img = pdf[i].render(scale=0.5).to_pil().convert("RGB")
+                img.thumbnail((200, 200))
+                for r, g, b in img.getdata():
+                    tally["#%02X%02X%02X" % ((r // 24) * 24 + 12, (g // 24) * 24 + 12, (b // 24) * 24 + 12)] += 1
+            for col, n in tally.most_common(60):
+                if _brandish(col) and not any(_close(col, c["color"]) for c in out):
+                    out.append({"color": col, "why": "prominent on the guide's pages", "role": ""})
+        except Exception:
+            pass
+    out = out[:6]
+    if not out:
+        return {"message": "No brand colors could be found in that PDF. Type your hex codes below.", "candidates": []}
+    return {"primary": None, "accent": None, "candidates": out,
+            "message": "The guide does not write its colors out, so these are the colors its graphics use. Pick the right ones, or type your hex codes below."}

@@ -319,3 +319,6 @@ blockquote cite { display: block; font-style: normal; font-size: 11px; color: va
 .srclinks { display: flex; gap: 14px; margin-top: 6px; } .linkbtn { background: none; border: 0; padding: 0; font: 600 12px var(--sans); color: var(--primary); cursor: pointer; text-decoration: none; }
 .passages blockquote { margin: 8px 0 0; } .src blockquote { white-space: pre-line; }
 @media (max-width: 900px) { .wscols { flex-direction: column; } .wsside { width: 100%; } .freechk { margin-left: 0; } }
+
+/* clean-up list heading */
+.listtitle { border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; margin-bottom: 4px; } .listtitle h3 { margin: 0; font-family: var(--serif); font-size: 18px; font-weight: 600; }

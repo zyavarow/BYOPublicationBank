@@ -2,10 +2,10 @@
 {% from "_steps.html" import steps %}
 {% block title %}Setup — Clean up the bank{% endblock %}
 {% block body %}
-{{ steps(org, 2) }}
-<p class="crumb"><a href="/org/{{ org.folder }}/step/2">← Publication Bank</a></p>
+{{ steps(org, 3) }}
+
 <h1>Clean up the bank</h1>
-<p class="lede">The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back.</p>
+<p class="lede">Optional. The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, review its suggestions, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back. You can skip this step and come back later.</p>
 
 <div class="cols" id="reviewTop" data-folder="{{ org.folder }}">
   <div class="card main-col stack">
@@ -51,7 +51,8 @@
     {% for key, (label, _c, _h) in groups.items() %}{% if counts[key] or key == g %}
     <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
   </div>
-  <p class="plain" style="margin:0">{{ groups[g][2] }}</p>
+  <div class="listtitle"><h3>{{ headings[g][0] }}</h3><p class="plain" style="margin:2px 0 0">{{ groups[g][2] }}</p>
+    <p class="hint" style="margin:6px 0 0"><strong>{{ headings[g][1] }}</strong> Choose <strong>Keep</strong> to put a paper in the bank or <strong>Exclude</strong> to leave it out. Your choice is saved straight away.</p></div>
   <div class="items" style="max-height:none">
     {% for it in items %}
     <div class="item" data-id="{{ it.id }}" data-decision="{{ it.decision }}">
@@ -79,8 +80,8 @@
   {% endif %}
 </div>
 <div class="footer">
-  <span></span>
-  <a class="btn" href="/org/{{ org.folder }}/step/2">Done — back to the Publication Bank</a>
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/2">← Back</a>
+  <a class="btn" href="/org/{{ org.folder }}/step/4">Continue — Extraction Schema →</a>
 </div>
 <script src="/static/js/review.js"></script>
 {% endblock %}

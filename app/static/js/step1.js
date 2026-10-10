@@ -76,8 +76,22 @@
     $("logoText").textContent = "Selected: " + f.name + " (saved when you continue)";
     paint();
   });
-  $("brand_guide").addEventListener("change", (e) => {
-    if (e.target.files[0]) $("guideText").textContent = "Selected: " + e.target.files[0].name;
+  $("brand_guide").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    $("guideText").textContent = "Reading the colors in " + f.name + "…";
+    const fd = new FormData();
+    fd.append("guide", f);
+    try {
+      const d = await (await fetch("/guide-colors", { method: "POST", body: fd })).json();
+      if (d.primary) $("primary").value = d.primary;
+      if (d.accent) $("accent").value = d.accent;
+      paint();
+      showSwatches(d.candidates || [], "guideSwatches");
+      $("guideText").textContent = f.name + ": " + d.message + " (The file is saved when you continue.)";
+    } catch (err) {
+      $("guideText").textContent = "Could not read that file. Set the colors by hand below.";
+    }
   });
   $("pullColors").addEventListener("click", async () => {
     const url = $("website").value.trim();
@@ -100,6 +114,7 @@
   });
   paint();
   const folder = location.pathname.split("/")[2];
+  fetch("/org/" + folder + "/guide-colors").then((r) => r.json()).then((d) => showSwatches(d.candidates || [], "guideSwatches")).catch(() => {});
   fetch("/org/" + folder + "/logo-colors").then((r) => r.json())
     .then((d) => showSwatches(d.candidates || [], "logoSwatches")).catch(() => {});
 })();

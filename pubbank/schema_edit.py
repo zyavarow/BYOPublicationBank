@@ -6,7 +6,8 @@ from pubbank.overlay_edit import CAT_KEYS, Overlay, join, new_overlay, slug_id
 from pubbank.template import load_template
 
 TEXT_KEYS = ["counts", "not_counts", "interpret", "na_means", "nf_means"]
-LOCKED = {"study_type", "gene_focus"}          # the template cannot work without these
+LOCKED = {"study_type", "gene_focus"}
+OPTIONS_LOCKED = {"study_type"}          # study types stay identical everywhere so papers can always be compared by design          # the template cannot work without these
 KIND_LABELS = {"pick_one": "Pick one", "pick_many": "Pick several", "text_list": "Free text"}
 
 
@@ -53,7 +54,7 @@ def view(folder):
         cards.append({
             "id": c["id"], "label": c["label"], "include": c["include"], "chip": chip, "custom": c["id"] in custom, "locked": c["id"] in LOCKED,
             "why": _first_sentence(c["counts"]), "options": opt["values"] if opt else [], "options_field": opt["name"] if opt else "",
-            "example": (c["fields"][0]["description"] if c["fields"] else ""), "filter_chip": bool(c["filter_chip"]),
+            "example": (c["fields"][0]["description"] if c["fields"] else ""), "filter_chip": bool(c["filter_chip"]), "options_locked": c["id"] == "study_type",
             "text": {k: c[k] for k in TEXT_KEYS}, "kind": "custom" if c["id"] in custom else ("customized" if changed.get(c["id"]) else "standard"),
             "changes": sorted(changed.get(c["id"], [])), "applies_to": "all papers" if c["applies_to"] == "All" else "papers reporting the paper's own work",
         })
@@ -80,7 +81,7 @@ def save_category(folder, cid, data):
         flag = "Yes" if data["filter_chip"] else "No"
         ov.set_custom_text(cid, "filter_chip", flag) if is_custom else ov.set_setting(cid, "filter_chip", flag)
     opt = _options_field(cur)
-    if "options" in data and opt is not None:
+    if "options" in data and opt is not None and cid not in OPTIONS_LOCKED:
         values = [v.strip() for v in data["options"] if v.strip()]
         if not values:
             raise ValueError("A list needs at least one option.")

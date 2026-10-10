@@ -5,7 +5,7 @@
   <a class="wsbrand" href="/org/{{ org.folder }}/workspace">
     <span class="avatar sm" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
     <span class="wsname">{{ org.name }}</span><span class="wspriv">Private — visible only to you</span></a>
-  <div class="right"><a class="exit" href="/org/{{ org.folder }}/step/5">← Setup</a></div>
+  <div class="right"><a class="exit" href="/org/{{ org.folder }}/step/6">← Setup</a></div>
 </div>
 {% endblock %}
 {% block pageclass %} wspage{% endblock %}
@@ -63,7 +63,7 @@
   <aside class="wsside">
     <div class="card sidecard"><div class="sidehd">This organization</div>
       <div class="sidebody">{{ bank.inbank + bank.abstract }} papers · {{ fields }} schema fields<br>{{ idx.chunks }} searchable passages{% if extracted %}<br>{{ extracted }} papers with extracted fields{% endif %}</div>
-      <a class="lnk" href="/org/{{ org.folder }}/step/3">Manage schema →</a></div>
+      <a class="lnk" href="/org/{{ org.folder }}/step/4">Manage schema →</a></div>
     <div class="card sidecard"><div class="sidehd">Spent on questions today</div>
       <div class="sidebody"><strong id="spent">${{ '%.2f'|format(today) }}</strong> of ${{ '%.2f'|format(cap) }} daily limit</div></div>
     <div class="card sidecard"><div class="sidehd">Recent searches</div>

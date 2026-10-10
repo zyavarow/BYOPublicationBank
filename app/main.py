@@ -19,8 +19,8 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
-from app.colors import logo_colors, pull_colors  # noqa: E402
-from pubbank import ask as asker, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
+from pubbank import ask as asker, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -77,6 +77,13 @@ def home(request: Request, msg: str = ""):
             cfg["received"], cfg["in_bank"] = orgs.bank_counts(conn, cfg["db_slug"]) if cfg["db_slug"] else (0, 0)
             cards.append(cfg)
     return _page(request, "home.html", orgs=cards, flash=msg)
+
+
+@app.get("/admin/schema-registry.xlsx")
+def schema_registry():
+    """Back-end overview (Excel): the standard categories and what each organization has customized."""
+    return Response(registry.workbook(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="schema_registry.xlsx"'})
 
 
 @app.post("/orgs/new")
@@ -185,6 +192,23 @@ def new_logo_colors(logo: UploadFile):
     if not ext or len(data) > LOGO_MAX:
         return JSONResponse({"candidates": []})
     return JSONResponse({"candidates": logo_colors(data, ext)})
+
+
+@app.get("/org/{folder}/guide-colors")
+def saved_guide_colors(folder: str):
+    org = _org_or_404(folder)
+    path = orgs.ORGS_DIR / folder / "brand_guide.pdf"
+    if org is None or not org["brand_guide"] or not path.exists():
+        return JSONResponse({"candidates": []})
+    return JSONResponse(guide_colors(path.read_bytes()))
+
+
+@app.post("/guide-colors")
+def new_guide_colors(guide: UploadFile):
+    data = guide.file.read(GUIDE_MAX + 1)
+    if len(data) > GUIDE_MAX or not data.startswith(b"%PDF"):
+        return JSONResponse({"message": "Please choose a PDF file up to 20 MB.", "candidates": []})
+    return JSONResponse(guide_colors(data))
 
 
 @app.post("/pull-colors")
@@ -332,7 +356,12 @@ def folder_add(folder: str, path: str = Form("")):
     return _start_pdf_job(org, files, f"{len(files)} PDFs from a folder")
 
 
-@app.get("/org/{folder}/step/2/review", response_class=HTMLResponse)
+@app.get("/org/{folder}/step/2/review")
+def review_old_address(folder: str):
+    return RedirectResponse(f"/org/{folder}/step/3", status_code=301)
+
+
+@app.get("/org/{folder}/step/3", response_class=HTMLResponse)
 def review_page(request: Request, folder: str, g: str = "", p: int = 1):
     org = _org_or_404(folder)
     if org is None:
@@ -347,7 +376,7 @@ def review_page(request: Request, folder: str, g: str = "", p: int = 1):
         bank_counts = bank.counts(conn, oid)
         estimate = topic.estimate_ai(conn, oid, topic_disease(org))
     terms = topic.get_terms(org)
-    return _page(request, "review.html", org=org, counts=counts, groups=review.GROUPS, g=g, items=items, total=total, pages=pages, p=p,
+    return _page(request, "review.html", org=org, counts=counts, groups=review.GROUPS, headings=review.HEADINGS, g=g, items=items, total=total, pages=pages, p=p,
                  bank=bank_counts, terms="; ".join(terms), estimate=estimate, has_key=bool(os.environ.get("ANTHROPIC_API_KEY")))
 
 
@@ -455,8 +484,8 @@ def topic_disease(org):
     return " ".join(x for x in (org["name"], org["description"]) if x)
 
 
-@app.get("/org/{folder}/step/4", response_class=HTMLResponse)
-def step4(request: Request, folder: str, paper: int = 0):
+@app.get("/org/{folder}/step/5", response_class=HTMLResponse)
+def step5(request: Request, folder: str, paper: int = 0):
     org = _org_or_404(folder)
     if org is None:
         return HTMLResponse("Unknown organization", status_code=404)
@@ -475,7 +504,7 @@ def step4(request: Request, folder: str, paper: int = 0):
             elif smp["status"] == "running":      # the app was restarted while the read was going: offer to run it again
                 conn.execute("UPDATE samples SET status = 'draft' WHERE id = %s", (smp["id"],))
                 conn.commit()
-                return RedirectResponse(f"/org/{folder}/step/4", status_code=303)
+                return RedirectResponse(f"/org/{folder}/step/5", status_code=303)
             elif smp["status"] == "draft":
                 ids = smp["paper_ids"]
                 ctx_.update(state="draft", smp=smp, papers=samples.papers_info(conn, oid, ids), est=samples.estimate(conn, folder, ids),
@@ -491,7 +520,7 @@ def step4(request: Request, folder: str, paper: int = 0):
                             answers=samples.paper_answers(conn, smp["id"], cur["id"], ctx) if cur else None,
                             score=samples.scorecard(conn, smp["id"], ctx), stale=smp["template_version"] != ctx.version,
                             answers_total=len([c for c in ctx.template["categories"] if c["include"]]))
-    return _page(request, "step4.html", **ctx_)
+    return _page(request, "step5.html", **ctx_)
 
 
 @app.post("/org/{folder}/sample/pick")
@@ -630,8 +659,8 @@ def _cfg_dict(org, **changes):
     return cfg
 
 
-@app.get("/org/{folder}/step/3", response_class=HTMLResponse)
-def step3(request: Request, folder: str):
+@app.get("/org/{folder}/step/4", response_class=HTMLResponse)
+def step4(request: Request, folder: str):
     org = _org_or_404(folder)
     if org is None:
         return HTMLResponse("Unknown organization", status_code=404)
@@ -645,7 +674,7 @@ def step3(request: Request, folder: str):
                         est=schema_ai.estimate(conn, oid, folder, org), est_revise=schema_ai.estimate(conn, oid, folder, org, revising=True), gene_roles=schema_ai.GENE_ROLES,
                         has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), papers_in_bank=n_papers["inbank"] + n_papers["abstract"],
                         approved=org["schema_approved"] == v["version"])
-    return _page(request, "step3.html", **ctx_)
+    return _page(request, "step4.html", **ctx_)
 
 
 def _schema_call(folder, fn):
@@ -797,8 +826,8 @@ def schema_approve(folder: str):
     return _schema_call(folder, go)
 
 
-@app.get("/org/{folder}/step/5", response_class=HTMLResponse)
-def step5(request: Request, folder: str):
+@app.get("/org/{folder}/step/6", response_class=HTMLResponse)
+def step6(request: Request, folder: str):
     org = _org_or_404(folder)
     if org is None:
         return HTMLResponse("Unknown organization", status_code=404)
@@ -816,7 +845,7 @@ def step5(request: Request, folder: str):
     for c in (v["cards"] if v else []):
         if c["include"]:
             fields[c["kind"]] += 1
-    return _page(request, "step5.html", org=org, view=v, bank=counts, fields=fields, score=score, depths=schema_edit.depth_options(),
+    return _page(request, "step6.html", org=org, view=v, bank=counts, fields=fields, score=score, depths=schema_edit.depth_options(),
                  approved=bool(v) and org["schema_approved"] == v["version"])
 
 

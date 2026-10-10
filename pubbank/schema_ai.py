@@ -133,7 +133,7 @@ SYSTEM = """You help a patient organization set up a searchable library of scien
 
 Rules:
 - Base every suggestion on the transcripts, notes or abstracts you are given. In each 'why', say where the idea came from in plain words ("In the interview, they said...", "The notes say...", "The abstracts show...") and say what the change is for. Never refer to "the owner" or to a role the reader has not been told about. Never invent needs.
-- Keep standard fields unless the organization plainly does not need them. Prefer adding concrete options to a field over creating a new field.
+- Never change the options of the 'study_type' field: they are the same for every organization. Keep standard fields unless the organization plainly does not need them. Prefer adding concrete options to a field over creating a new field.
 - Propose a new field only when the organization asked for it or it is clearly central to what they want to compare across papers. At most five. When the person's feedback asks for a new field, always include it in new_fields, even if an existing field could partly cover it: their instruction outranks the preference for adding options.
 - Options must be short, concrete and non-overlapping, using the vocabulary the organization and the abstracts use.
 - Gene names: list the disease gene, the proteins that work with it (cofactors and partners), genes of related diseases, and the different names used for the same gene in other species. Give each a role.
@@ -266,7 +266,7 @@ def apply(folder, accept, edited=None):
             done.append(f"Removed {cur['label']}")
         elif ch["action"] == "edit":
             opt = next((f for f in cur["fields"] if f["kind"] == "pick-list"), None)
-            adds = [o.strip() for o in ch["add_options"] if o.strip() and o.strip() not in (opt["values"] if opt else [])]
+            adds = [o.strip() for o in ch["add_options"] if o.strip() and o.strip() not in (opt["values"] if opt else [])] if ch["id"] != "study_type" else []
             if opt and adds:
                 values = [v for v in opt["values"] if v != "Other"] + adds + (["Other"] if "Other" in opt["values"] else [])
                 ov.set_custom_options(ch["id"], opt["name"], values) if is_custom else ov.set_options(ch["id"], opt["name"], values)

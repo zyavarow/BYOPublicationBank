@@ -129,9 +129,8 @@
     {% if counts.setaside + counts.duplicate + counts.ocr + counts.failed %} · {{ counts.setaside + counts.duplicate + counts.ocr + counts.failed }} set aside{% endif %}
     {% if counts.processing %} · {{ counts.processing }} processing{% endif %}</div>
   <div style="display:flex;gap:14px;align-items:center">
-    <a class="btn line" href="/org/{{ org.folder }}/step/2/review">Clean up the bank</a>
     <a class="btn ghost" href="/org/{{ org.folder }}/step/1">← Back</a>
-    <a class="btn" href="/org/{{ org.folder }}/step/3">Continue — Extraction Schema →</a>
+    <a class="btn" href="/org/{{ org.folder }}/step/3">Continue — Clean up the bank →</a>
   </div>
 </div>
 <script src="/static/js/step2.js"></script>

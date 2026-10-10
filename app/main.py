@@ -20,13 +20,20 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import ask as asker, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from pubbank import apikey, ask as asker, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
 app = FastAPI(title="Research Portal Setup Kit", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=APP / "static"), name="static")
 templates = Jinja2Templates(directory=APP / "templates")
+def _static_v(path):
+    """/static/<path>?v=<time the file last changed>, so a browser never shows an old script or style sheet."""
+    f = APP / "static" / path
+    return f"/static/{path}?v={int(f.stat().st_mtime)}" if f.exists() else f"/static/{path}"
+
+
+templates.env.globals["static_v"] = _static_v
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
 STEP_TITLES = {}
@@ -44,6 +51,8 @@ async def same_origin_only(request: Request, call_next):
             return JSONResponse({"error": "cross-site request refused"}, status_code=403)
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
+    if request.url.path.startswith("/static/") and not request.url.path.startswith("/static/fonts/"):
+        response.headers["Cache-Control"] = "no-cache"      # always check for a newer script or style sheet, so updates show up straight away
     return response
 
 
@@ -362,7 +371,7 @@ def review_old_address(folder: str):
 
 
 @app.get("/org/{folder}/step/3", response_class=HTMLResponse)
-def review_page(request: Request, folder: str, g: str = "", p: int = 1):
+def review_page(request: Request, folder: str, g: str = "", p: int = 1, partial: int = 0):
     org = _org_or_404(folder)
     if org is None:
         return HTMLResponse("Unknown organization", status_code=404)
@@ -376,8 +385,11 @@ def review_page(request: Request, folder: str, g: str = "", p: int = 1):
         bank_counts = bank.counts(conn, oid)
         estimate = topic.estimate_ai(conn, oid, topic_disease(org))
     terms = topic.get_terms(org)
+    if partial:      # only the tabs and the list, so switching tabs does not reload (or scroll) the page
+        return _page(request, "_review_list.html", org=org, counts=counts, groups=review.GROUPS, headings=review.HEADINGS, g=g, items=items, total=total,
+                     pages=pages, p=p)
     return _page(request, "review.html", org=org, counts=counts, groups=review.GROUPS, headings=review.HEADINGS, g=g, items=items, total=total, pages=pages, p=p,
-                 bank=bank_counts, terms="; ".join(terms), estimate=estimate, has_key=bool(os.environ.get("ANTHROPIC_API_KEY")))
+                 bank=bank_counts, terms="; ".join(terms), estimate=estimate, has_key=apikey.has_key(folder))
 
 
 @app.post("/org/{folder}/bank/decision")
@@ -458,8 +470,8 @@ def topic_ai(folder: str, confirm: str = Form("")):
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     if confirm != "yes":
         return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    if not apikey.has_key(folder):
+        return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
     disease = topic_disease(org)
     with connect() as conn:
         oid = _org_id(conn, org)
@@ -508,7 +520,7 @@ def step5(request: Request, folder: str, paper: int = 0):
             elif smp["status"] == "draft":
                 ids = smp["paper_ids"]
                 ctx_.update(state="draft", smp=smp, papers=samples.papers_info(conn, oid, ids), est=samples.estimate(conn, folder, ids),
-                            has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), max_size=samples.MAX_SIZE)
+                            has_key=apikey.has_key(folder), max_size=samples.MAX_SIZE)
             else:
                 ctx = load_context(path)
                 plist = samples.papers_info(conn, oid, smp["paper_ids"])
@@ -553,8 +565,8 @@ def sample_run(folder: str, sample_id: int = Form(...), confirm: str = Form(""))
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     if confirm != "yes":
         return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    if not apikey.has_key(folder):
+        return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
     with connect() as conn:
         oid = _org_id(conn, org)
         smp = samples.latest(conn, oid)
@@ -672,7 +684,7 @@ def step4(request: Request, folder: str):
         if v is not None:
             ctx_.update(uploads=schema_ai.list_uploads(folder), notes=schema_ai.get_notes(folder), proposal=schema_ai.load_proposal(folder),
                         est=schema_ai.estimate(conn, oid, folder, org), est_revise=schema_ai.estimate(conn, oid, folder, org, revising=True), gene_roles=schema_ai.GENE_ROLES,
-                        has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), papers_in_bank=n_papers["inbank"] + n_papers["abstract"],
+                        has_key=apikey.has_key(folder), papers_in_bank=n_papers["inbank"] + n_papers["abstract"],
                         approved=org["schema_approved"] == v["version"])
     return _page(request, "step4.html", **ctx_)
 
@@ -769,8 +781,8 @@ def schema_propose(folder: str, confirm: str = Form(""), feedback: str = Form(""
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     if confirm != "yes":
         return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    if not apikey.has_key(folder):
+        return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
     with connect() as conn:
         oid = _org_id(conn, org)
         est = schema_ai.estimate(conn, oid, folder, org, revising=bool(feedback.strip()))
@@ -846,7 +858,40 @@ def step6(request: Request, folder: str):
         if c["include"]:
             fields[c["kind"]] += 1
     return _page(request, "step6.html", org=org, view=v, bank=counts, fields=fields, score=score, depths=schema_edit.depth_options(),
-                 approved=bool(v) and org["schema_approved"] == v["version"])
+                 approved=bool(v) and org["schema_approved"] == v["version"], key=apikey.status(folder))
+
+
+def _key_reply(folder, ok, msg):
+    return JSONResponse({"ok": ok, "message": msg, **apikey.status(folder)}, status_code=200 if ok else 400, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/org/{folder}/apikey")
+def apikey_save(folder: str, key: str = Form("")):
+    """Check an organization's own Anthropic key and store it on the server. The key is never sent back to the browser."""
+    if _org_or_404(folder) is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    ok, msg = apikey.save(folder, key)
+    return _key_reply(folder, ok, msg)
+
+
+@app.post("/org/{folder}/apikey/test")
+def apikey_test(folder: str):
+    """Check the key currently in use (free: it asks Anthropic whether the key is valid and uses no tokens)."""
+    if _org_or_404(folder) is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    key = apikey.key_for(folder)
+    if not key:
+        return _key_reply(folder, False, "No key is set yet.")
+    ok, msg = apikey.test(key)
+    return _key_reply(folder, ok, msg)
+
+
+@app.post("/org/{folder}/apikey/remove")
+def apikey_remove(folder: str):
+    if _org_or_404(folder) is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    apikey.remove(folder)
+    return _key_reply(folder, True, "Removed. This organization is back to the shared default key.")
 
 
 def _library_ids(conn, oid):
@@ -874,8 +919,8 @@ def run_start(folder: str, limit: float = Form(...), confirm: str = Form("")):
         return JSONResponse({"error": "Set up the extraction schema first."}, status_code=400)
     if confirm != "yes":
         return JSONResponse({"error": "Please confirm the cost first."}, status_code=400)
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+    if not apikey.has_key(folder):
+        return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
     v = schema_edit.view(folder)
     if org["schema_approved"] != v["version"]:
         return JSONResponse({"error": "Approve the extraction schema first (step 3). The schema was changed since it was approved."}, status_code=400)
@@ -997,7 +1042,7 @@ def workspace(request: Request, folder: str):
     return _page(request, "workspace.html", org=org, bank=counts, idx=idx, recent=recent, today=today, cap=cap, facets=facets, extracted=extracted,
                  fields=len([c for c in v["cards"] if c["include"]]) if v else 0, roles={k: x[0] for k, x in asker.ROLES.items()},
                  depths=[dict(key=k, label=d["label"], cost=asker.estimate(k)) for k, d in asker.DEPTHS.items()],
-                 has_key=bool(os.environ.get("ANTHROPIC_API_KEY")), choose_depth=org.get("allow_depth_choice", "yes") != "no")
+                 has_key=apikey.has_key(folder), choose_depth=org.get("allow_depth_choice", "yes") != "no")
 
 
 @app.get("/org/{folder}/workspace/facets")
@@ -1033,8 +1078,8 @@ def workspace_ask(folder: str, question: str = Form(""), role: str = Form("scien
                 return JSONResponse({"error": "Type a question or some search words."}, status_code=400)
             hits = search.search(conn, oid, question.strip(), k=20, per_paper=2, synonyms=syn, paper_ids=paper_ids)
             return {"mode": "search", "passages": search.passages(conn, hits)}
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            return JSONResponse({"error": "No Anthropic API key is set on this computer (see the .env file)."}, status_code=400)
+        if not apikey.has_key(folder):
+            return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
         if sources.busy(oid):
             return JSONResponse({"error": "Another question is still being answered. Wait for it to finish."}, status_code=409)
     jid = sources.new_job("ask", question[:80], oid, {"quick": "about 15 seconds", "standard": "about 30 seconds", "deep": "about 1 to 2 minutes"}[depth])

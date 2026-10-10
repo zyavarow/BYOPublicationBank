@@ -15,7 +15,7 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 
-from pubbank import orgs, sources
+from pubbank import apikey, orgs, sources
 from pubbank.bank import apply_rules
 from pubbank.db import connect
 from pubbank.extraction import MODEL, PRICES, _call, cost_usd
@@ -137,9 +137,9 @@ def estimate_ai(conn, org_id, cfg_disease):
 
 def run_ai_job(jid, org_id, disease, max_cost):
     """Background job: classify every candidate paper. Stops (and says so) if the cost cap is reached."""
-    client = anthropic.Anthropic()
     conn = connect()
     try:
+        client = apikey.client_for_org(conn, org_id)
         sources.ensure_columns(conn)
         rows = [r for r in candidates(conn, org_id) if not r[4]]
         sources._set(jid, stage="Reading titles and abstracts", done=0, total=len(rows))

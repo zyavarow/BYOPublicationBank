@@ -56,27 +56,43 @@
     });
   }
 
-  // Keep / Exclude buttons (clicking the chosen one again clears it)
-  for (const item of document.querySelectorAll(".item[data-id]")) {
-    for (const b of item.querySelectorAll(".dec")) {
-      b.addEventListener("click", async () => {
-        const current = item.dataset.decision;
-        const next = current === b.dataset.d ? "" : b.dataset.d;
-        const r = await post("decision", new URLSearchParams({ paper_id: item.dataset.id, decision: next }));
-        const d = await r.json();
-        if (!r.ok) { alert(d.error); return; }
-        item.dataset.decision = next;
-        for (const x of item.querySelectorAll(".dec")) {
-          x.classList.toggle("on", x.dataset.d === next);
-          x.classList.toggle("bad", x.dataset.d === "Exclude" && next === "Exclude");
-        }
-        const st = item.querySelector("[data-role=state]");
-        st.textContent = d.in_bank ? "In bank" : "Set aside";
-        st.className = "badge " + (d.in_bank ? "ok" : "gray");
-        $("bankSummary").firstElementChild.textContent = d.bank_total;
-      });
+  // Keep in bank / Exclude / Undo buttons. One handler on the list, so it keeps working after a tab switch.
+  const list = $("reviewList");
+  list.addEventListener("click", async (e) => {
+    const b = e.target.closest(".dec");
+    if (b) {
+      const item = b.closest(".item");
+      const next = b.dataset.d;
+      const r = await post("decision", new URLSearchParams({ paper_id: item.dataset.id, decision: next }));
+      const d = await r.json();
+      if (!r.ok) { alert(d.error); return; }
+      item.dataset.decision = next;
+      const box = item.querySelector(".decide");
+      const defaultIn = box.dataset.default === "in";
+      const over = (defaultIn && next === "Exclude") || (!defaultIn && next === "Keep");
+      box.innerHTML = over
+        ? `<span class="cannot">${next === "Exclude" ? "You excluded this" : "You kept this"}</span><button type="button" class="dec" data-d="">Undo</button>`
+        : defaultIn ? `<button type="button" class="dec" data-d="Exclude">Exclude</button>` : `<button type="button" class="dec" data-d="Keep">Keep in bank</button>`;
+      const st = item.querySelector("[data-role=state]");
+      st.textContent = d.in_bank ? "In bank" : "Set aside";
+      st.className = "badge " + (d.in_bank ? "ok" : "gray");
+      $("bankSummary").firstElementChild.textContent = d.bank_total;
+      return;
     }
-  }
+    // tabs and page links: swap the list in place instead of reloading the page
+    const a = e.target.closest("a.tab, .pager a");
+    if (a) {
+      e.preventDefault();
+      const url = new URL(a.getAttribute("href"), location.href);
+      list.style.opacity = "0.5";
+      try {
+        const html = await (await fetch(url.pathname + url.search + (url.search ? "&" : "?") + "partial=1")).text();
+        list.innerHTML = html;
+        history.replaceState(null, "", url.pathname + url.search);
+      } catch (err) { location.href = url; }
+      list.style.opacity = "";
+    }
+  });
 
   // spreadsheet upload
   $("decFile").addEventListener("change", async (e) => {

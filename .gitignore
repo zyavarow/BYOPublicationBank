@@ -21,3 +21,6 @@ orgs/*/logo.*
 orgs/*/brand_guide.*
 orgs/*/uploads/
 orgs/*/proposal.json
+# An organization's own Anthropic key
+orgs/*/api_key.txt
+orgs/*/api_key.tmp

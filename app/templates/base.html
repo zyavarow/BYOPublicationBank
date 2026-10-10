@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Research Portal Setup Kit{% endblock %}</title>
-<link rel="stylesheet" href="/static/css/app.css">
+<link rel="stylesheet" href="{{ static_v('css/app.css') }}">
 {% block head %}{% endblock %}
 </head>
 <body>
@@ -18,6 +18,6 @@
 {% if flash %}<div class="flash {{ 'err' if flash_error else '' }}">{{ flash }}</div>{% endif %}
 {% block body %}{% endblock %}
 </div>
-<script src="/static/js/progress.js"></script>
+<script src="{{ static_v('js/progress.js') }}"></script>
 </body>
 </html>

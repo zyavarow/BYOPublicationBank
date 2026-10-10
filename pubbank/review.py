@@ -9,7 +9,7 @@ from pubbank.bank import SOURCE_LABELS, apply_rules, clean_title
 
 GROUPS = {
     "offtopic": ("May be off-topic", "p.topic_status = 'off_topic'",
-                 "Papers the topic check thinks are not about the disease. They stay out of the bank until you say Keep."),
+                 "Papers the topic check thinks are not about the disease. They are set aside unless you choose to keep them."),
     "borderline": ("Worth a look", "p.topic_status = 'borderline'",
                    "The AI check was unsure. They stay in the bank unless you exclude them."),
     "software": ("Flagged as look-alikes", "coalesce(p.excluded, false)",
@@ -27,15 +27,16 @@ GROUPS = {
 }
 # Heading and one-line status for each list, so the first thing a reader sees says what the papers below are.
 HEADINGS = {
-    "offtopic": ("Suggested to exclude: may be off-topic", "These are currently left out of the bank."),
-    "borderline": ("Worth a look: the AI was unsure", "These are currently kept in the bank."),
-    "software": ("Suggested to exclude: look-alikes", "These are currently left out of the bank."),
-    "possible_dup": ("Possible duplicates: suggested to exclude one copy of each pair", "Both copies are currently in the bank."),
-    "nonpaper": ("Suggested to exclude: not research papers", "These are currently left out of the bank."),
+    "offtopic": ("Suggested to exclude: may be off-topic", "Set aside by default. Choose Keep in bank for any that are on topic."),
+    "borderline": ("Worth a look: the AI was unsure", "In the bank by default. Choose Exclude for any that are not on topic."),
+    "software": ("Suggested to exclude: look-alikes", "Set aside by default. Choose Keep in bank for any that are really about your disease."),
+    "possible_dup": ("Possible duplicates: suggested to exclude one copy of each pair", "Both copies are in the bank by default. Choose Exclude on the copy you do not want."),
+    "nonpaper": ("Suggested to exclude: not research papers", "Set aside by default. Choose Keep in bank for any that should count as papers."),
     "duplicate": ("Already excluded: duplicate copies", "These are left out because an identical copy is kept."),
     "ocr": ("Already excluded: scanned files with no readable text", "These cannot be read until text recognition is added."),
     "failed": ("Already excluded: files that could not be read", "These are damaged or unreadable."),
 }
+DEFAULT_IN = {"borderline", "possible_dup"}      # every other list starts out set aside; a person can only put a paper back with Keep
 UNKEEPABLE = {"duplicate", "ocr", "failed"}      # nothing usable to keep, so a person cannot override these
 
 
@@ -65,7 +66,7 @@ def page(conn, org_id, group, pageno=1, per=30):
                "ocr": "scanned pages with no readable text", "failed": "the file could not be read"}.get(group) or bank_reason
         items.append({"id": pid, "title": clean_title(title), "source": SOURCE_LABELS.get(source, source), "in_bank": bool(in_bank),
                       "decision": decision or "", "why": why or "", "method": t_method or "", "other": clean_title(other) if oid else "",
-                      "meta": " ".join(str(x) for x in (journal, year) if x), "can_keep": group not in UNKEEPABLE})
+                      "meta": " ".join(str(x) for x in (journal, year) if x), "can_keep": group not in UNKEEPABLE, "default_in": group in DEFAULT_IN})
     return items, total, pages, pageno
 
 

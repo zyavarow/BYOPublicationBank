@@ -13,6 +13,7 @@ import time
 
 import anthropic
 
+from pubbank import apikey
 from pubbank.db import Jsonb, connect
 from pubbank.extraction import MODEL, PRICES, _key_kinds, _wants_recheck, build_paper_text, cost_usd
 from pubbank.extraction_schema import derived_fields
@@ -151,7 +152,7 @@ def _submit(conn, client, run_id, requests, round_no, message):
 
 def start(folder, run_id):
     """Build and submit round 1."""
-    client = anthropic.Anthropic()
+    client = apikey.client(folder)
     conn = connect()
     try:
         ctx = load_context(template_path(folder))
@@ -201,7 +202,8 @@ def advance(run_id):
         if not r or r[1] != "running" or not r[3]:
             return
         org_id, _st, rnd, batch_id, state, paper_ids, _ver, limit = r
-        client = anthropic.Anthropic()
+        folder = _folder_of(conn, org_id)
+        client = apikey.client(folder)
         batch = client.messages.batches.retrieve(batch_id)
         c = batch.request_counts
         done = c.succeeded + c.errored + c.canceled + c.expired
@@ -211,7 +213,6 @@ def advance(run_id):
                          (f"Round {rnd} of 3 is running at Anthropic: {done} of {total} requests finished", run_id))
             conn.commit()
             return
-        folder = _folder_of(conn, org_id)
         ctx = load_context(template_path(folder))
         if _ver and ctx.version != _ver:
             conn.execute("UPDATE extraction_runs SET status = 'failed', message = %s WHERE id = %s",
@@ -379,11 +380,11 @@ def _finish(conn, run_id, org_id, ctx, state, papers):
 def cancel(run_id):
     conn = connect()
     try:
-        r = conn.execute("SELECT batch_id, status FROM extraction_runs WHERE id = %s", (run_id,)).fetchone()
+        r = conn.execute("SELECT batch_id, status, org_id FROM extraction_runs WHERE id = %s", (run_id,)).fetchone()
         if r and r[1] == "running":
             if r[0]:
                 try:
-                    anthropic.Anthropic().messages.batches.cancel(r[0])
+                    apikey.client(_folder_of(conn, r[2])).messages.batches.cancel(r[0])
                 except Exception:
                     pass
             conn.execute("UPDATE extraction_runs SET status = 'cancelled', message = 'Cancelled. Anything already processed is still charged.', updated_at = now() WHERE id = %s", (run_id,))

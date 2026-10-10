@@ -11,7 +11,7 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 
-from pubbank import orgs
+from pubbank import apikey, orgs
 from pubbank.extraction import MODEL, PRICES, cost_usd
 from pubbank.overlay_edit import Overlay, join
 from pubbank.schema_edit import LOCKED, add_field, load_template, overlay_path
@@ -201,7 +201,7 @@ def load_proposal(folder):
 
 def generate(conn, org_id, folder, cfg, previous=None, feedback=""):
     """One request to Claude; saves and returns the proposal plus what it cost. With `previous` and `feedback` it revises."""
-    client = anthropic.Anthropic()
+    client = apikey.client(folder)
     text = build_input(conn, org_id, folder, cfg, previous, feedback)
     resp = client.messages.parse(
         model=MODEL, max_tokens=12000, system=SYSTEM, messages=[{"role": "user", "content": text}], output_format=Proposal,

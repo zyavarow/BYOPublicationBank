@@ -12,7 +12,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from pubbank import orgs, sources
+from pubbank import apikey, orgs, sources
 from pubbank.bank import clean_title
 from pubbank.db import Jsonb, connect
 from pubbank.extraction import MODEL, PRICES, extract_paper, plan_calls
@@ -201,7 +201,7 @@ def save_extraction(conn, paper_id, org_id, run_label, res):
 
 
 def run_job(jid, org_id, folder, sample_id, max_cost):
-    client = anthropic.Anthropic()
+    client = apikey.client(folder)
     conn = connect()
     try:
         ensure_tables(conn)

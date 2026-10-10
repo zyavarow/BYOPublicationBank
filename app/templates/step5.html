@@ -115,5 +115,5 @@
   <a class="btn" href="/org/{{ org.folder }}/step/6">{{ 'Continue — Review & Launch →' if state == 'done' else 'Skip for now — Review & Launch →' }}</a>
 </div>
 </div>
-<script src="/static/js/step5.js"></script>
+<script src="{{ static_v('js/step5.js') }}"></script>
 {% endblock %}

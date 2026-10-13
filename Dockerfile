@@ -21,7 +21,7 @@ RUN python scripts/fetch_model.py
 COPY . .
 RUN mkdir -p /data
 
-VOLUME /data
+# (No VOLUME line: Railway does not allow it. On Railway, attach a volume at /data in its dashboard; docker compose mounts one itself.)
 EXPOSE 8000
 
 # One worker only: background jobs are kept in this process's memory. The host sets PORT.

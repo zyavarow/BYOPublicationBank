@@ -757,10 +757,16 @@ def paper_pdf(folder: str, paper_id: int):
 
 
 @app.get("/org/{folder}/bank/jobs/{job_id}")
-def job_status(folder: str, job_id: str):
+def job_status(request: Request, folder: str, job_id: str):
     job = sources.get_job(job_id)
     if not job or not orgs.valid_folder(folder):
         return JSONResponse({"error": "Unknown job"}, status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, orgs.load(folder))
+    if job.get("org_id") not in (None, oid):          # a job of another organization is not visible here
+        return JSONResponse({"error": "Unknown job"}, status_code=404)
+    if job["kind"] != "ask" and not auth.allows(request.state.user, folder, "admin"):
+        return JSONResponse({"error": "You do not have access to this."}, status_code=403)      # members may follow their own questions, nothing else
     out = {k: job[k] for k in ("stage", "done", "total", "finished", "error", "result", "label", "hint")}
     out["elapsed"] = round(time.time() - job["started"])
     return out
@@ -877,7 +883,6 @@ def schema_notes(folder: str, notes: str = Form("")):
 @app.post("/org/{folder}/schema/propose")
 def schema_propose(folder: str, confirm: str = Form(""), feedback: str = Form(""), current: str = Form("")):
     import json as _json
-    user_id = request.state.user["id"]
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
@@ -1166,6 +1171,7 @@ def workspace_facets(folder: str):
 def workspace_ask(request: Request, folder: str, question: str = Form(""), role: str = Form("scientist"), depth: str = Form(""), fmt: str = Form(""),
                   mode: str = Form("answer"), filters: str = Form("{}")):
     import json as _json
+    user_id = request.state.user["id"]
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)

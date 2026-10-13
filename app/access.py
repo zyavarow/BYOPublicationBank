@@ -8,7 +8,7 @@ import re
 
 PUBLIC_PATHS = {"/login", "/logout", "/first-run", "/healthz"}
 ORG = re.compile(r"^/org/([^/]+)(/.*)?$")
-MEMBER_PART = re.compile(r"^/(workspace(/.*)?|logo)$")
+MEMBER_PART = re.compile(r"^/(workspace(/.*)?|logo|bank/jobs/[^/]+)$")      # bank/jobs/<id>: progress of a question; the route refuses other kinds of job for members
 ANY_PATHS = {"/", "/account", "/account/password"}
 ADMIN_ANY_PATHS = {"/logo-colors", "/guide-colors", "/pull-colors"}
 

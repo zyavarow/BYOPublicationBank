@@ -35,9 +35,16 @@ def main():
     if n:
         sys.exit(f"The database already holds {n} papers. Refusing to overwrite it.")
     print("Loading the dump (a few minutes for a large library)...")
-    r = subprocess.run([str(pg_bin() / "pg_restore.exe"), "--no-owner", "--no-privileges", "--exit-on-error", "-d", a.url, a.dump], capture_output=True, text=True)
-    if r.returncode != 0:
+    # No --exit-on-error: a dump made by Postgres 18 contains settings an older server does not know; those lines fail harmlessly. The row counts
+    # below are what shows whether the data really arrived.
+    r = subprocess.run([str(pg_bin() / "pg_restore.exe"), "--no-owner", "--no-privileges", "-d", a.url, a.dump], capture_output=True, text=True)
+    errors = [ln for ln in r.stderr.splitlines() if "error:" in ln.lower()]
+    if r.returncode > 1:
         sys.exit("pg_restore failed:\n" + r.stderr.strip()[-800:])
+    if errors:
+        print(f"{len(errors)} messages from the restore (usually harmless version differences); the first ones:")
+        for ln in errors[:4]:
+            print("  ", ln[:200])
     with connect(a.url) as conn:
         if a.only:
             keep = conn.execute("SELECT id FROM organizations WHERE slug = %s", (a.only,)).fetchone()
@@ -52,8 +59,13 @@ def main():
             conn.execute("DELETE FROM ask_log")
             print("Question log emptied.")
         conn.commit()
-        for t in ("organizations", "papers", "extractions", "chunks"):
-            print(f"{t:<14}{conn.execute(f'SELECT count(*) FROM {t}').fetchone()[0]:>8}")
+        counts = {t: conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in ("organizations", "papers", "extractions", "chunks")}
+        for t, n in counts.items():
+            print(f"{t:<14}{n:>8}")
+        vec = conn.execute("SELECT count(embedding) FROM chunks").fetchone()[0]
+        print(f"{'passage vectors':<14}{vec:>8}")
+        if not (counts["papers"] and counts["chunks"] and vec == counts["chunks"]):
+            sys.exit("The data did not arrive completely (see the counts above). Do not start the app: use a new empty database and try again.")
     print("Done. Start (or restart) the app; it adds the account tables when it starts.")
 
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}People · {{ org.name }}{% endblock %}
-{% block topbar %}<div class="topbar"><a class="brand" href="/">Research Portal Setup Kit</a><div class="right"><a class="exit" href="/org/{{ org.folder }}/step/1">← Setup</a>{% include "_usernav.html" %}</div></div>{% endblock %}
+{% block topbar %}<div class="topbar"><a class="brand" href="/">Research Portal Setup Kit</a><div class="right"><a class="exit" href="/org/{{ org.folder }}/admin">Admin</a><a class="exit" href="/org/{{ org.folder }}/step/1">← Setup</a>{% include "_usernav.html" %}</div></div>{% endblock %}
 {% block body %}
 <h1>People at {{ org.name }}</h1>
 <p class="lede">Administrators set up the portal and can see what members ask. Members can use the workspace and ask questions. Members are told that administrators can see their questions.</p>

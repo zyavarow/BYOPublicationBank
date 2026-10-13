@@ -1,0 +1,25 @@
+  <div class="sumgrid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="sumbox"><div class="lab">Questions</div><div class="big2">{{ summary.questions }}</div><div class="hint">{{ periods[days]|lower }}</div></div>
+    <div class="sumbox"><div class="lab">People who asked</div><div class="big2">{{ summary.people }}</div><div class="hint">of {{ member_count }} with access</div></div>
+    <div class="sumbox"><div class="lab">Spent on questions</div><div class="big2">{{ money(summary.spend) }}</div><div class="hint">{{ cap_note }}</div></div>
+    <div class="sumbox"><div class="lab">Low-confidence answers</div><div class="big2">{{ summary.low }}</div><div class="hint">{% if summary.questions %}{{ summary.gaps }} had parts the library did not cover{% else %}no questions yet{% endif %}</div></div>
+  </div>
+
+  <div class="card stack" style="margin-top:20px">
+    <div><h2 style="margin:0 0 4px">Gaps in the library</h2>
+      <p class="plain" style="margin:0">Questions the library could not fully answer, and what was missing: low-confidence answers first, then answers with parts not covered. These are the topics where adding papers would help most.</p></div>
+    {% if not gaps %}<p class="plain" style="margin:0">Nothing here {{ periods[days]|lower }}. Every question was answered with its parts covered.</p>{% endif %}
+    {% for g in gaps %}
+    <div class="item" style="align-items:flex-start"><div class="main"><div class="ttl" style="white-space:normal">{{ g.question }}</div>
+      <div class="sub" style="white-space:normal">{% for m in g.missing %}{{ m }}{% if not loop.last %} · {% endif %}{% else %}Confidence was Low: few supporting papers.{% endfor %}</div></div>
+      <div class="badge {{ 'bad' if g.confidence == 'Low' else 'warn' }}">{{ g.confidence or '—' }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h2>By person</h2>
+    {% if not people %}<p class="plain" style="margin:0">No questions yet {{ periods[days]|lower }}.</p>{% else %}
+    <table class="stbl"><tr><th>Person</th><th>Questions</th><th>Spent</th><th>Last asked</th></tr>
+      {% for p in people %}<tr><td>{{ p.name }}</td><td>{{ p.n }}</td><td>{{ money(p.spend) }}</td><td><time data-ts="{{ p.last.isoformat() }}">{{ p.last.strftime('%b %d') }}</time></td></tr>{% endfor %}
+    </table>{% endif %}
+  </div>

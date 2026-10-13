@@ -13,7 +13,7 @@ from pubbank import bank, sources
 from pubbank.db import connect
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "raw"
+RAW = Path(os.environ.get("PUBBANK_HOME") or ROOT) / "data" / "raw"
 MAX_PDF_BYTES = 200 * 1024 * 1024
 MAX_FILES_FROM_FOLDER = 5000
 

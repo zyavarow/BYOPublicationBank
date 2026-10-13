@@ -1,0 +1,21 @@
+# Never put papers, extracted text, databases, keys or local settings into an image
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+data/
+orgs/*/config.toml
+orgs/*/logo.*
+orgs/*/brand_guide.*
+orgs/*/uploads/
+orgs/*/proposal.json
+orgs/*/api_key.txt
+OneDrive_*.zip
+SkyWhal3/
+docs/mockup/
+*.db
+*.sqlite

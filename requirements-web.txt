@@ -1,0 +1,22 @@
+# What the web app needs when it runs on a Linux host (Docker image). PDF reading (Docling) is NOT included: it is heavy and only
+# needed when an organization uploads PDFs, which runs as a separate step (scripts/ingest.py) on a bigger machine.
+# Same versions as requirements.txt. psycopg[binary] is fine on Linux; on the Windows laptop never install it (see requirements.txt).
+anthropic==1.11.0
+biopython==1.88
+openpyxl==3.1.5
+pillow==12.3.0
+pydantic==2.13.5
+pypdf==6.19.0
+pypdfium2==5.13.0
+python-dotenv==1.2.4
+RapidFuzz==3.14.6
+requests==2.34.2
+fastapi==0.143.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+Jinja2==3.1.6
+numpy==2.5.3
+safetensors==0.8.0
+tokenizers==0.23.2
+huggingface_hub==1.33.0
+psycopg[binary]==3.3.6

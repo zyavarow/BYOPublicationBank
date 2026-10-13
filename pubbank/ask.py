@@ -197,7 +197,7 @@ def _system(role, fmt, disease):
 
 
 # ---------------------------------------------------------------------------------------------- the entry point
-def ask(conn, org_id, question, role="scientist", depth="standard", fmt="plain", disease="", synonyms=None, paper_ids=None, daily_cap=5.0):
+def ask(conn, org_id, question, role="scientist", depth="standard", fmt="plain", disease="", synonyms=None, paper_ids=None, daily_cap=5.0, user_id=None):
     """Returns a dict ready for the screen. Raises ValueError for problems the person can fix (too long, cap reached)."""
     question = question.strip()
     if not question or len(question) > 1200:
@@ -225,9 +225,9 @@ def ask(conn, org_id, question, role="scientist", depth="standard", fmt="plain",
     result.update(depth=depth, role=role, format=fmt, queries=queries, seconds=round(seconds, 1), cost=round(meter.dollars, 4), model=d["model"])
     ensure_table(conn)
     log_id = conn.execute(
-        """INSERT INTO ask_log (org_id, question, role, depth, format, answer, sources, model, input_tokens, output_tokens, cost_usd, seconds)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (org_id, question, role, depth, fmt, Jsonb(result), Jsonb(sources), d["model"], meter.tin, meter.tout, round(meter.dollars, 5), seconds)).fetchone()[0]
+        """INSERT INTO ask_log (org_id, question, role, depth, format, answer, sources, model, input_tokens, output_tokens, cost_usd, seconds, user_id)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (org_id, question, role, depth, fmt, Jsonb(result), Jsonb(sources), d["model"], meter.tin, meter.tout, round(meter.dollars, 5), seconds, user_id)).fetchone()[0]
     conn.commit()
     return {"id": log_id, "question": question, "answer": result, "sources": sources}
 

@@ -1,0 +1,37 @@
+{% extends "auth_base.html" %}
+{% block title %}Your invitation · Research Portal Setup Kit{% endblock %}
+{% block auth %}
+{% if not link %}
+<h1 style="margin:0">This link is no longer valid</h1>
+<p class="plain" style="margin:0">Invitation and reset links work once and expire after a few days. Ask the person who invited you for a new one.</p>
+<a class="btn line" href="/login" style="align-self:flex-start">Go to sign in</a>
+{% else %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+{% if link.purpose == 'reset' %}
+<h1 style="margin:0">Choose a new password</h1>
+<p class="plain" style="margin:0">For {{ link.email }}.</p>
+{% elif existing %}
+<h1 style="margin:0">Join {{ org_name or 'this organization' }}</h1>
+<p class="plain" style="margin:0">{{ link.email }} already has an account here.</p>
+{% else %}
+<h1 style="margin:0">Welcome{% if org_name %} to {{ org_name }}{% endif %}</h1>
+<p class="plain" style="margin:0">You have been invited as {{ 'an administrator' if link.role == 'admin' else 'a member' }}. Choose a password to create your account for {{ link.email }}.</p>
+{% endif %}
+
+{% if existing and link.purpose != 'reset' %}
+  {% if signed_in and signed_in.email|lower == link.email %}
+  <form method="post" action="/invite/{{ token }}/join"><button class="btn" type="submit">Join {{ org_name or 'the organization' }}</button></form>
+  {% else %}
+  <a class="btn" href="/login?next=/invite/{{ token }}" style="align-self:flex-start">Sign in to accept</a>
+  {% endif %}
+{% else %}
+<form method="post" action="/invite/{{ token }}" class="stack">
+  {% if not existing %}<div><label class="lab" for="name">Your name</label><input type="text" id="name" name="name" maxlength="120" autocomplete="name"></div>{% endif %}
+  <div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
+    <div class="hint">At least 10 characters. A few words in a row make a good, easy-to-remember password.</div></div>
+  <div><label class="lab" for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>
+  <button class="btn" type="submit">{{ 'Save password' if link.purpose == 'reset' else 'Create account' }}</button>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

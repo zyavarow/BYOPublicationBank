@@ -55,7 +55,7 @@ def _gelu(x):
     """GELU in its widely used tanh form (error below 0.001 against the exact form), built from np.exp, which is several times faster than
     the exact erf on this machine."""
     z = 1.5957691216057308 * (x + 0.044715 * x * x * x)          # 2 * sqrt(2/pi) * (x + 0.044715 x^3)
-    return x / (1.0 + np.exp(-z))                                 # = 0.5 x (1 + tanh(z/2))
+    return x / (1.0 + np.exp(np.clip(-z, -60.0, 60.0)))           # = 0.5 x (1 + tanh(z/2)); the clip only avoids a harmless overflow warning
 
 
 def _forward(ids, mask, w, cfg):

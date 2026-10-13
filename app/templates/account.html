@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Your account · Research Portal Setup Kit{% endblock %}
+{% block topbar %}<div class="topbar"><a class="brand" href="/">Research Portal Setup Kit</a><div class="right">{% include "_usernav.html" %}</div></div>{% endblock %}
+{% block body %}
+<h1>Your account</h1>
+<div class="card stack" style="max-width:520px">
+  <div><div class="lab">Name</div>{{ request.state.user.name or '—' }}</div>
+  <div><div class="lab">Email</div>{{ request.state.user.email }}</div>
+  <div><div class="lab">Access</div>{% if request.state.user.is_super %}Owner of this installation (every organization){% else %}{% for f, r in request.state.user.orgs.items() %}{{ f }}: {{ 'administrator' if r == 'admin' else 'member' }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% endif %}</div>
+</div>
+<div class="card stack" style="max-width:520px;margin-top:20px">
+  <h2 style="margin:0">Change your password</h2>
+  <form method="post" action="/account/password" class="stack">
+    <div><label class="lab" for="current">Current password</label><input type="password" id="current" name="current" autocomplete="current-password" required></div>
+    <div><label class="lab" for="password">New password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required></div>
+    <div><label class="lab" for="password2">New password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>
+    <button class="btn" type="submit" style="align-self:flex-start">Change password</button>
+  </form>
+  <div class="hint">Changing your password signs you out everywhere else.</div>
+</div>
+{% endblock %}

@@ -12,6 +12,8 @@
   <a class="brand" href="/">Research Portal Setup Kit</a>
   <div class="right">
     <a class="exit" href="/">Save &amp; exit</a>
+    {% if org is defined and can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/people">People</a>{% endif %}
+    {% include "_usernav.html" %}
   </div>
 </div>{% endblock %}
 <div class="page{% block pageclass %}{% endblock %}">

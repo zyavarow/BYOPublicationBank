@@ -19,8 +19,11 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
+from starlette.concurrency import run_in_threadpool  # noqa: E402
+
+from app import access, auth_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import apikey, ask as asker, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from pubbank import apikey, ask as asker, auth, bundle, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -34,6 +37,7 @@ def _static_v(path):
 
 
 templates.env.globals["static_v"] = _static_v
+templates.env.globals["can_admin"] = lambda user, folder: auth.allows(user, folder, "admin")
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
 STEP_TITLES = {}
@@ -42,18 +46,72 @@ REFERENCE_MAX = 25 * 1024 * 1024
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
+BLOCKED_PAID = [("full_run", "/run/start"), ("topic_ai", "/bank/topic/ai"), ("sample_run", "/sample/run"), ("schema_ai", "/schema/propose")]
+
+
+def _blocked_paid_step(path):
+    """Paid steps an installation owner has switched off (PUBBANK_BLOCK=full_run,topic_ai,sample_run,schema_ai), for previews and demos."""
+    off = {x.strip() for x in os.environ.get("PUBBANK_BLOCK", "").split(",") if x.strip()}
+    return any(kind in off and path.endswith(tail) for kind, tail in BLOCKED_PAID)
+
+
+def _gate(request):
+    """None when the request may go ahead; otherwise the response to send instead (sign-in page, 401, 403)."""
+    request.state.user = None
+    level, folder = access.classify(request.url.path)
+    if level == "public":
+        return None
+    wants_page = "text/html" in request.headers.get("accept", "")
+    with connect() as conn:
+        if not auth.has_users(conn):
+            return RedirectResponse("/first-run", status_code=303) if wants_page else JSONResponse({"error": "Create the first account first."}, status_code=401)
+        user = auth.user_for_token(conn, request.cookies.get(auth.COOKIE))
+    if not user:
+        if wants_page and request.method == "GET":
+            nxt = request.url.path + ("?" + request.url.query if request.url.query else "")
+            return RedirectResponse("/login?next=" + quote_plus(nxt), status_code=303)
+        return JSONResponse({"error": "Please sign in again."}, status_code=401)
+    request.state.user = user
+    ok = {"any": True, "super": user["is_super"], "admin_any": auth.is_any_admin(user),
+          "member": auth.allows(user, folder, "member"), "admin": auth.allows(user, folder, "admin")}[level]
+    if not ok:
+        if wants_page:
+            return HTMLResponse("<p style='font-family:sans-serif;margin:40px'>You do not have access to this page. <a href='/'>Back to your organizations</a></p>", status_code=403)
+        return JSONResponse({"error": "You do not have access to this."}, status_code=403)
+    if request.method == "POST" and _blocked_paid_step(request.url.path):
+        return JSONResponse({"error": "This is a preview installation, so this paid step is switched off."}, status_code=403)
+    return None
+
+
 @app.middleware("http")
-async def same_origin_only(request: Request, call_next):
-    """Refuse form posts that come from another website (this app changes files and the database)."""
+async def guard(request: Request, call_next):
+    """Refuse form posts that come from another website, check who is signed in, and add safety headers to every response."""
     if request.method == "POST":
         origin = request.headers.get("origin")
-        if origin and origin.split("://", 1)[-1] != request.headers.get("host"):
+        if (origin and origin.split("://", 1)[-1] != request.headers.get("host")) or request.headers.get("sec-fetch-site") == "cross-site":
             return JSONResponse({"error": "cross-site request refused"}, status_code=403)
-    response = await call_next(request)
+    response = await run_in_threadpool(_gate, request)
+    if response is None:
+        response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "same-origin"
+    if auth.HOSTED:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
     if request.url.path.startswith("/static/") and not request.url.path.startswith("/static/fonts/"):
         response.headers["Cache-Control"] = "no-cache"      # always check for a newer script or style sheet, so updates show up straight away
+    elif "text/html" in response.headers.get("content-type", "") or "json" in response.headers.get("content-type", ""):
+        response.headers["Cache-Control"] = "no-store"      # pages and answers belong to the signed-in person: never kept in a shared cache
     return response
+
+
+@app.on_event("startup")
+def run_migrations():
+    """Bring the database up to date before serving anything."""
+    with connect() as conn:
+        applied = migrations.run(conn)
+    if applied:
+        print("Applied database migrations:", ", ".join(applied))
 
 
 def _mins(seconds):
@@ -73,18 +131,27 @@ def _org_or_404(folder):
     return cfg
 
 
-def _page(request, name, **ctx):
-    return templates.TemplateResponse(request, name, ctx)
+def _page(request, name, status_code=200, **ctx):
+    return templates.TemplateResponse(request, name, ctx, status_code=status_code)
+
+
+auth_routes.register(app, _page)
 
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, msg: str = ""):
     cards = []
+    user = request.state.user
     with connect() as conn:
         for cfg in orgs.list_orgs():
+            cfg["role"] = auth.role_in(user, cfg["folder"])
+            if not cfg["role"]:
+                continue
             cfg["initials"] = orgs.initials(cfg["name"])
             cfg["received"], cfg["in_bank"] = orgs.bank_counts(conn, cfg["db_slug"]) if cfg["db_slug"] else (0, 0)
             cards.append(cfg)
+    if len(cards) == 1 and cards[0]["role"] == "member":
+        return RedirectResponse(f"/org/{cards[0]['folder']}/workspace", status_code=303)      # members have nowhere else to go
     return _page(request, "home.html", orgs=cards, flash=msg)
 
 
@@ -93,6 +160,36 @@ def schema_registry():
     """Back-end overview (Excel): the standard categories and what each organization has customized."""
     return Response(registry.workbook(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": 'attachment; filename="schema_registry.xlsx"'})
+
+
+@app.get("/admin/org-bundle/{folder}.zip")
+def org_bundle_download(request: Request, folder: str):
+    """An organization's settings as a zip (no key, papers or database), to move it to another installation."""
+    if not orgs.valid_folder(folder):
+        return HTMLResponse("Unknown organization", status_code=404)
+    with connect() as conn:
+        auth.audit(conn, request.state.user["id"], "bundle_exported", folder)
+        conn.commit()
+    return Response(bundle.export(folder), media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{folder}-settings.zip"'})
+
+
+@app.post("/admin/org-bundle")
+def org_bundle_upload(request: Request, folder: str = Form(""), file: UploadFile = None):
+    """Bring an organization's settings in from another installation. Also makes sure it has a row in the database."""
+    folder = folder.strip().lower()
+    if file is None:
+        return RedirectResponse("/?msg=Choose+a+settings+zip+first", status_code=303)
+    try:
+        written = bundle.import_bundle(folder, file.file.read(bundle.MAX_BYTES + 1))
+    except ValueError as e:
+        return RedirectResponse("/?msg=" + quote_plus(str(e)), status_code=303)
+    cfg = orgs.load(folder)
+    with connect() as conn:
+        slug = cfg["db_slug"] or cfg["name"]
+        conn.execute("INSERT INTO organizations (slug, name) VALUES (%s, %s) ON CONFLICT (slug) DO NOTHING", (slug, cfg["name"]))
+        auth.audit(conn, request.state.user["id"], "bundle_imported", f"{folder}: {len(written)} files")
+        conn.commit()
+    return RedirectResponse(f"/?msg={quote_plus(f'Imported {len(written)} files for {cfg['name']}.')}", status_code=303)
 
 
 @app.post("/orgs/new")
@@ -339,6 +436,8 @@ def process_pdfs(folder: str):
 
 @app.post("/org/{folder}/bank/pdfs/folder-check")
 def folder_check(folder: str, path: str = Form("")):
+    if auth.HOSTED:
+        return JSONResponse({"error": "Adding a folder from this computer is not available on a hosted installation. Upload the PDFs instead."}, status_code=400)
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
@@ -353,6 +452,8 @@ def folder_check(folder: str, path: str = Form("")):
 
 @app.post("/org/{folder}/bank/pdfs/folder-add")
 def folder_add(folder: str, path: str = Form("")):
+    if auth.HOSTED:
+        return JSONResponse({"error": "Adding a folder from this computer is not available on a hosted installation. Upload the PDFs instead."}, status_code=400)
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
@@ -776,6 +877,7 @@ def schema_notes(folder: str, notes: str = Form("")):
 @app.post("/org/{folder}/schema/propose")
 def schema_propose(folder: str, confirm: str = Form(""), feedback: str = Form(""), current: str = Form("")):
     import json as _json
+    user_id = request.state.user["id"]
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
@@ -866,11 +968,14 @@ def _key_reply(folder, ok, msg):
 
 
 @app.post("/org/{folder}/apikey")
-def apikey_save(folder: str, key: str = Form("")):
+def apikey_save(request: Request, folder: str, key: str = Form("")):
     """Check an organization's own Anthropic key and store it on the server. The key is never sent back to the browser."""
     if _org_or_404(folder) is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     ok, msg = apikey.save(folder, key)
+    with connect() as conn:
+        auth.audit(conn, request.state.user["id"], "api_key_saved" if ok else "api_key_rejected", folder)
+        conn.commit()
     return _key_reply(folder, ok, msg)
 
 
@@ -887,10 +992,13 @@ def apikey_test(folder: str):
 
 
 @app.post("/org/{folder}/apikey/remove")
-def apikey_remove(folder: str):
+def apikey_remove(request: Request, folder: str):
     if _org_or_404(folder) is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     apikey.remove(folder)
+    with connect() as conn:
+        auth.audit(conn, request.state.user["id"], "api_key_removed", folder)
+        conn.commit()
     return _key_reply(folder, True, "Removed. This organization is back to the shared default key.")
 
 
@@ -1055,7 +1163,7 @@ def workspace_facets(folder: str):
 
 
 @app.post("/org/{folder}/workspace/ask")
-def workspace_ask(folder: str, question: str = Form(""), role: str = Form("scientist"), depth: str = Form(""), fmt: str = Form(""),
+def workspace_ask(request: Request, folder: str, question: str = Form(""), role: str = Form("scientist"), depth: str = Form(""), fmt: str = Form(""),
                   mode: str = Form("answer"), filters: str = Form("{}")):
     import json as _json
     org = _org_or_404(folder)
@@ -1090,7 +1198,7 @@ def workspace_ask(folder: str, question: str = Form(""), role: str = Form("scien
         c = connect()
         try:
             sources._set(jid, stage="Searching the library and writing the answer", total=0)
-            r = asker.ask(c, oid, question, role=role, depth=depth, fmt=fmt, disease=disease, synonyms=syn, paper_ids=paper_ids, daily_cap=cap)
+            r = asker.ask(c, oid, question, role=role, depth=depth, fmt=fmt, disease=disease, synonyms=syn, paper_ids=paper_ids, daily_cap=cap, user_id=user_id)
             sources._set(jid, finished=True, stage="Done", result={"kind": "ask", **r})
         except ValueError as e:
             sources._set(jid, finished=True, stage="Failed", error=str(e))

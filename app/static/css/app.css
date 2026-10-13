@@ -48,7 +48,7 @@ h2 { margin: 0 0 8px; font-family: var(--serif); font-size: 20px; font-weight: 6
 .side-col { flex: 1; }
 
 label.lab { display: block; font-size: 13px; font-weight: 600; color: var(--label); margin-bottom: 6px; }
-input[type=text], input[type=email], input[type=url], textarea, select {
+input[type=text], input[type=email], input[type=url], input[type=password], textarea, select {
   width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px;
   font-family: var(--sans); color: var(--text); background: var(--field); }
 input:focus, textarea:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--primary) 40%, transparent); outline-offset: 1px; }
@@ -322,3 +322,8 @@ blockquote cite { display: block; font-style: normal; font-size: 11px; color: va
 
 /* clean-up list heading */
 .listtitle { border-left: 4px solid var(--accent); padding: 4px 0 4px 14px; margin-bottom: 4px; } .listtitle h3 { margin: 0; font-family: var(--serif); font-size: 18px; font-weight: 600; }
+
+/* sign-in and account pages */
+.authwrap { display: flex; justify-content: center; padding-top: 24px; }
+.authcard { width: 100%; max-width: 440px; }
+.linkbtn { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }

@@ -12,6 +12,11 @@ import numpy as np
 from pubbank import embeddings
 
 RRF_K = 60
+# How much each kind of search counts in the merge. Chosen on the 28 draft questions in docs/gold_questions_DADA2.csv (scripts/eval_retrieval.py):
+# the word searches all use the same words, so at equal weight they outvote meaning and push right answers down. Exact matches (variants,
+# catalog numbers) stay strong because a question that names one wants exactly that.
+WEIGHT = {"meaning": 1.0, "words": 0.05, "all words": 0.15, "exact": 2.0}
+MAX_DF = 0.03               # words found in more than this share of passages (ADA2, deficiency...) say nothing about which paper, so the word search skips them
 POOL = 120                  # candidates taken from each kind of search before merging
 STOP = set("a an the of in on at to for from by with and or not is are was were be been this that these those it its as which what who whom how "
            "why when where does do did can could would should may might than then there their about into over under between among after before "
@@ -20,6 +25,7 @@ VARIANT = re.compile(r"^(?:p\.)?\(?([A-Z])(\d{2,4})([A-Z*])\)?$|^(?:p\.)?\(?([A-
 AA = {"A": "Ala", "R": "Arg", "N": "Asn", "D": "Asp", "C": "Cys", "Q": "Gln", "E": "Glu", "G": "Gly", "H": "His", "I": "Ile", "L": "Leu",
       "K": "Lys", "M": "Met", "F": "Phe", "P": "Pro", "S": "Ser", "T": "Thr", "W": "Trp", "Y": "Tyr", "V": "Val", "*": "Ter"}
 AA1 = {v: k for k, v in AA.items()}
+CDNA = re.compile(r"c\.[\d_+\-*]+(?:[ACGT]>[ACGT]|(?:del|dup|ins)[ACGT]*)")      # DNA-level changes such as c.139G>A or c.973-2A>G
 CATALOG = re.compile(r"^(?:ab|sc-?|cst-?|#)?\d{4,}[A-Za-z]{0,3}$", re.I)
 
 _cache = {}
@@ -57,6 +63,7 @@ def expand(query, synonyms=None):
             exact += f
         if CATALOG.match(w) and re.search(r"\d", w):
             exact.append(w)
+    exact += CDNA.findall(query)
     low = {t.lower() for t in terms}
     for group in synonyms or []:                     # other names of a gene help the word index, but are far too common to use as exact matches
         if low & {g.lower() for g in group}:
@@ -92,9 +99,23 @@ def vector_search(conn, org_id, query, allowed=None, k=POOL):
     return [(int(ids[i]), float(sims[i])) for i in top if sims[i] > 0]
 
 
+_df = {}
+
+
+def _share(conn, org_id, tok):
+    """Share of the organization's passages that contain this word (cached)."""
+    key = (org_id, tok.lower())
+    if key not in _df:
+        n = conn.execute("SELECT count(*) FILTER (WHERE tsv @@ plainto_tsquery('english', %s)), count(*) FROM chunks WHERE org_id = %s", (tok, org_id)).fetchone()
+        _df[key] = n[0] / max(n[1], 1)
+    return _df[key]
+
+
 def word_search(conn, org_id, terms, allowed=None, k=POOL):
     toks = [re.sub(r"[^A-Za-z0-9]", "", t) for t in terms]
     toks = [t for t in toks if len(t) >= 2]
+    if MAX_DF < 1.0:
+        toks = [t for t in toks if _share(conn, org_id, t) <= MAX_DF]
     if not toks:
         return []
     q = " | ".join(dict.fromkeys(toks))
@@ -131,7 +152,7 @@ def fuse(*ranked):
     score, why = {}, {}
     for name, lst in ranked:
         for rank, (cid, s) in enumerate(lst):
-            score[cid] = score.get(cid, 0.0) + 1.0 / (RRF_K + rank + 1)
+            score[cid] = score.get(cid, 0.0) + WEIGHT.get(name, 1.0) / (RRF_K + rank + 1)
             why.setdefault(cid, {})[name] = (rank + 1, round(s, 3))
     return sorted(score.items(), key=lambda x: -x[1]), why
 

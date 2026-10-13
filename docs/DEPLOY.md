@@ -54,7 +54,7 @@ The order matters: the app creates empty tables the moment it starts, and a back
    - `PUBBANK_BLOCK` = `full_run` while extraction is on hold (switches off the full-library run; add `,topic_ai,sample_run,schema_ai` to switch off every paid setup step)
 3. Attach a **volume** to the app service, mounted at `/data`. Organization settings live there.
 4. **Settings → Networking → Generate Domain.** The site is https automatically.
-5. When the deploy finishes, open the domain. The deploy log should include `Applied database migrations: 002_accounts`.
+5. When the deploy finishes, open the domain. The deploy log should include `Applied database migrations: 001_baseline, 002_accounts`.
 
 ## 5. Create the owner account and bring in the settings
 

@@ -4,8 +4,8 @@
 <div class="topbar wsbar">
   <a class="wsbrand" href="/org/{{ org.folder }}/workspace">
     <span class="avatar sm" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
-    <span class="wsname">{{ org.name }}</span><span class="wspriv">Private — visible only to you</span></a>
-  <div class="right"><a class="exit" href="/org/{{ org.folder }}/step/6">← Setup</a></div>
+    <span class="wsname">{{ org.name }}</span><span class="wspriv">Private to {{ org.name }}: only its members can open this</span></a>
+  <div class="right">{% if can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/step/6">← Setup</a>{% endif %}{% include "_usernav.html" %}</div>
 </div>
 {% endblock %}
 {% block pageclass %} wspage{% endblock %}
@@ -41,7 +41,7 @@
   <div class="wsmain" id="results">
     {% if idx.chunks == 0 %}
     <div class="callout warn"><strong>The search index has not been built yet.</strong> The library needs to be cut into passages and prepared for meaning-based search before questions can be answered.
-      <div style="margin-top:8px"><button type="button" class="btn small" id="buildIdx">Build the search index</button> <span class="filenote">Takes a few hours for a few hundred papers; faster when the computer is plugged in.</span></div></div>
+      {% if can_admin(request.state.user, org.folder) %}<div style="margin-top:8px"><button type="button" class="btn small" id="buildIdx">Build the search index</button> <span class="filenote">Takes a few hours for a few hundred papers; faster when the computer is plugged in.</span></div>{% else %}<div class="filenote" style="margin-top:8px">An administrator needs to build it first.</div>{% endif %}</div>
     {% elif idx.embedded < idx.chunks %}
     <div class="callout warn"><strong>Meaning-based search is {{ (100 * idx.embedded / idx.chunks)|round|int }}% ready</strong> ({{ idx.embedded }} of {{ idx.chunks }} passages prepared). Until it finishes, answers rely more on exact words and may miss relevant papers.
       <span id="idxNote" class="filenote"></span></div>
@@ -63,7 +63,7 @@
   <aside class="wsside">
     <div class="card sidecard"><div class="sidehd">This organization</div>
       <div class="sidebody">{{ bank.inbank + bank.abstract }} papers · {{ fields }} schema fields<br>{{ idx.chunks }} searchable passages{% if extracted %}<br>{{ extracted }} papers with extracted fields{% endif %}</div>
-      <a class="lnk" href="/org/{{ org.folder }}/step/4">Manage schema →</a></div>
+      {% if can_admin(request.state.user, org.folder) %}<a class="lnk" href="/org/{{ org.folder }}/step/4">Manage schema →</a>{% endif %}</div>
     <div class="card sidecard"><div class="sidehd">Spent on questions today</div>
       <div class="sidebody"><strong id="spent">${{ '%.2f'|format(today) }}</strong> of ${{ '%.2f'|format(cap) }} daily limit</div></div>
     <div class="card sidecard"><div class="sidehd">Recent searches</div>

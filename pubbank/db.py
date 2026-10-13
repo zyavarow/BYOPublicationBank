@@ -22,6 +22,8 @@ def _prepare():
     """Point psycopg at the one signed file it needs (libpq.dll) WITHOUT touching the search path.
     Putting the whole Postgres folder on PATH / add_dll_directory makes other packages (SciPy, the PDF parser, lxml)
     load Postgres's copies of zlib, libxml2, libzstd... and fail, so only the single libpq.dll path is exposed."""
+    if os.name != "nt":
+        return          # only Windows Smart App Control needs this workaround; elsewhere psycopg finds its own libpq
     os.environ["PSYCOPG_IMPL"] = "python"
     folder = pg_bin()
     if folder:

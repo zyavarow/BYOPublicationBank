@@ -4,12 +4,15 @@ config.toml holds what the setup wizard's first screen collects (name, descripti
 organization's rows in the database (organizations.slug), which is also the folder name under data/raw/.
 """
 import json
+import os
 import re
 import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-ORGS_DIR = ROOT / "orgs"
+HOME = Path(os.environ.get("PUBBANK_HOME") or ROOT)       # where this installation keeps its own files (a hosting volume, e.g. /data); the project folder by default
+ORGS_DIR = HOME / "orgs"
+ORGS_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULTS = {
     "name": "", "description": "", "website": "", "topic_terms": "", "answer_format": "plain", "search_depth": "standard", "allow_depth_choice": "yes", "daily_cap": "5.00", "schema_approved": "",

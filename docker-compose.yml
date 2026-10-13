@@ -1,0 +1,33 @@
+# Run the whole app (web app + database) on one computer or server:   docker compose up --build
+# Then open http://localhost:8000 and create the first account. Settings come from a file named .env (copy .env.example).
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: publication_bank
+    volumes:
+      - dbdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d publication_bank"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/publication_bank
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PUBBANK_HOSTED: ${PUBBANK_HOSTED:-0}
+      PUBBANK_SETUP_CODE: ${PUBBANK_SETUP_CODE:-}
+      PUBBANK_BLOCK: ${PUBBANK_BLOCK:-}
+      NCBI_EMAIL: ${NCBI_EMAIL:-}
+    volumes:
+      - appdata:/data
+    ports:
+      - "8000:8000"
+volumes:
+  dbdata:
+  appdata:

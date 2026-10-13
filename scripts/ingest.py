@@ -696,7 +696,7 @@ def main():
     if not Entrez.email:
         sys.exit("NCBI_EMAIL missing from .env")
 
-    folder = ROOT / "data" / "raw" / args.org
+    folder = Path(os.environ.get("PUBBANK_HOME") or ROOT) / "data" / "raw" / args.org
     pdfs = sorted(p for p in folder.rglob("*") if p.suffix.lower() == ".pdf")
     if not pdfs:
         sys.exit(f"No PDFs found in {folder}")

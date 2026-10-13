@@ -25,7 +25,23 @@ NOT_BRAND = {"#1877F2", "#3B5998", "#1DA1F2", "#0A66C2", "#0077B5", "#FF0000", "
               "#007CBA", "#005A87", "#3858E9"}
 
 
+def _public_address(url):
+    """Refuse addresses that point inside the server's own network (so the Pull colors button cannot be used to probe it)."""
+    import ipaddress
+    import socket
+    host = urlparse(url).hostname or ""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        raise ValueError("address not found")
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+            raise ValueError("that address is not a public website")
+
+
 def _get(url):
+    _public_address(url)
     r = requests.get(url, headers=HEADERS, timeout=10, stream=True)
     r.raise_for_status()
     data = r.raw.read(MAX_BYTES, decode_content=True)
@@ -33,6 +49,7 @@ def _get(url):
 
 
 def _get_bytes(url, limit=2_000_000):
+    _public_address(url)
     r = requests.get(url, headers=HEADERS, timeout=10, stream=True)
     r.raise_for_status()
     return r.raw.read(limit, decode_content=True)

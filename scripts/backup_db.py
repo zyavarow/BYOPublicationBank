@@ -41,6 +41,7 @@ def counts(db, base_args, env):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verify", action="store_true", help="restore into a scratch database and compare row counts")
+    ap.add_argument("--for-host", action="store_true", help="a copy to load into an online installation: leaves out the accounts, sessions and migration records of this installation")
     args = ap.parse_args()
     if pg_bin() is None:
         sys.exit("Could not find the PostgreSQL tools folder (set PG_BIN in .env).")
@@ -51,8 +52,9 @@ def main():
 
     out_dir = ROOT / "data" / "backups"
     out_dir.mkdir(parents=True, exist_ok=True)
-    dump = out_dir / f"{db}_{datetime.now():%Y%m%d_%H%M}.dump"
-    run("pg_dump", [*conn_args, "-d", db, "-Fc", "-f", str(dump)], env)
+    dump = out_dir / f"{db}_{datetime.now():%Y%m%d_%H%M}{'_for_host' if args.for_host else ''}.dump"
+    skip = [x for t in ("users", "memberships", "sessions", "invites", "audit_log", "schema_migrations") for x in ("-T", t)] if args.for_host else []
+    run("pg_dump", [*conn_args, "-d", db, "-Fc", *skip, "-f", str(dump)], env)
     print(f"Backup written: {dump}  ({dump.stat().st_size / 1e6:.1f} MB)")
 
     if args.verify:

@@ -1,0 +1,14 @@
+{% extends "auth_base.html" %}
+{% block title %}Sign in · Research Portal Setup Kit{% endblock %}
+{% block auth %}
+<h1 style="margin:0">Sign in</h1>
+{% if info %}<div class="flash">{{ info }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+<form method="post" action="/login" class="stack">
+  <input type="hidden" name="next" value="{{ next }}">
+  <div><label class="lab" for="email">Email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
+  <div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password" required></div>
+  <button class="btn" type="submit">Sign in</button>
+</form>
+<div class="hint">Forgot your password? Ask an administrator of your organization for a reset link.</div>
+{% endblock %}

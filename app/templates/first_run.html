@@ -1,0 +1,20 @@
+{% extends "auth_base.html" %}
+{% block title %}Create the first account · Research Portal Setup Kit{% endblock %}
+{% block auth %}
+<h1 style="margin:0">Create the first account</h1>
+<p class="plain" style="margin:0">This installation has no accounts yet. The first account is the owner: it can open every organization, create new ones and invite other people.</p>
+{% if problem %}<div class="flash err">{{ problem }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+{% if not problem or err %}
+<form method="post" action="/first-run" class="stack">
+  <div><label class="lab" for="name">Your name</label><input type="text" id="name" name="name" value="{{ form.name }}" maxlength="120" autocomplete="name"></div>
+  <div><label class="lab" for="email">Email (this is what you sign in with)</label><input type="email" id="email" name="email" value="{{ form.email }}" autocomplete="username" required></div>
+  <div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
+    <div class="hint">At least 10 characters. A few words in a row make a good, easy-to-remember password.</div></div>
+  <div><label class="lab" for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>
+  {% if need_code %}<div><label class="lab" for="code">Setup code</label><input type="password" id="code" name="code" autocomplete="off" required>
+    <div class="hint">The setup code was set in the host's settings (PUBBANK_SETUP_CODE). It stops a stranger from creating the first account.</div></div>{% endif %}
+  <button class="btn" type="submit">Create account</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}People · {{ org.name }}{% endblock %}
+{% block topbar %}<div class="topbar"><a class="brand" href="/">Research Portal Setup Kit</a><div class="right"><a class="exit" href="/org/{{ org.folder }}/step/1">← Setup</a>{% include "_usernav.html" %}</div></div>{% endblock %}
+{% block body %}
+<h1>People at {{ org.name }}</h1>
+<p class="lede">Administrators set up the portal and can see what members ask. Members can use the workspace and ask questions. Members are told that administrators can see their questions.</p>
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+{% if link %}
+<div class="card stack" style="max-width:760px;margin-bottom:20px;border-color:var(--primary)">
+  <strong>{{ link_note }}</strong>
+  <div class="web-row"><input type="text" id="linkBox" value="{{ link }}" readonly onclick="this.select()"><button class="btn small" type="button" id="copyBtn">Copy link</button></div>
+  <div class="hint">Send this link to the person yourself (email, message). It is shown only now; anyone who has the link can use it once, so send it privately.</div>
+</div>
+{% endif %}
+<div class="card stack" style="max-width:760px">
+  <h2 style="margin:0">Invite someone</h2>
+  <form method="post" action="/org/{{ org.folder }}/people/invite" class="web-row" style="align-items:flex-end">
+    <div style="flex:2"><label class="lab" for="email">Email</label><input type="email" id="email" name="email" required></div>
+    <div style="flex:1"><label class="lab" for="role">Role</label><select id="role" name="role"><option value="member">Member</option><option value="admin">Administrator</option></select></div>
+    <button class="btn small" type="submit">Make invitation link</button>
+  </form>
+</div>
+<div class="card" style="max-width:760px;margin-top:20px">
+  <h2>Current people</h2>
+  {% if not rows %}<p class="plain">No one yet besides the installation owner, who can always open every organization.</p>{% endif %}
+  <table class="stbl">
+    {% for p in rows %}
+    <tr><td><strong>{{ p.name or p.email }}</strong><div class="hint" style="margin:0">{{ p.email }}</div></td>
+      <td>{{ 'Administrator' if p.role == 'admin' else 'Member' }}</td>
+      <td class="hint">{% if p.last_login %}Last signed in {{ p.last_login.strftime('%b %d, %Y') }}{% else %}Has not signed in yet{% endif %}</td>
+      <td style="text-align:right;white-space:nowrap">
+        {% if p.can_reset %}<form method="post" action="/org/{{ org.folder }}/people/reset" style="display:inline"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="btn small line" type="submit">Reset password link</button></form>{% endif %}
+        {% if p.id != request.state.user.id %}<form method="post" action="/org/{{ org.folder }}/people/remove" style="display:inline" onsubmit="return confirm('Remove this person from {{ org.name|e }}?')"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="btn small line" type="submit">Remove</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+<script>
+const cb = document.getElementById("copyBtn");
+if (cb) cb.addEventListener("click", () => { const b = document.getElementById("linkBox"); b.select(); navigator.clipboard.writeText(b.value).then(() => (cb.textContent = "Copied")); });
+</script>
+{% endblock %}

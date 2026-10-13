@@ -5,7 +5,9 @@ FROM python:3.14-slim
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/models \
-    PUBBANK_HOME=/data
+    PUBBANK_HOME=/data \
+    MALLOC_ARENA_MAX=2 \
+    OPENBLAS_NUM_THREADS=2
 
 WORKDIR /app
 

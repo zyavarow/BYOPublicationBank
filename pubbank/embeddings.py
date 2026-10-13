@@ -33,11 +33,12 @@ def _load():
     global _state
     with _lock:
         if _state is None:
-            from safetensors.numpy import load_file
+            from safetensors import safe_open
             from tokenizers import Tokenizer
             root = _snapshot()
             cfg = json.load(open(os.path.join(root, "config.json")))
-            w = {k: v.astype(np.float32) for k, v in load_file(os.path.join(root, "model.safetensors")).items()}
+            with safe_open(os.path.join(root, "model.safetensors"), framework="numpy") as f:        # one tensor at a time: reading the whole file first needs twice the memory
+                w = {k: f.get_tensor(k).astype(np.float32, copy=False) for k in f.keys()}
             tok = Tokenizer.from_file(os.path.join(root, "tokenizer.json"))
             tok.enable_truncation(max_length=MAX_TOKENS)
             tok.enable_padding(pad_id=cfg["pad_token_id"], pad_token="[PAD]")

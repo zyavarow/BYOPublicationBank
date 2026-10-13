@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Admin · {{ org.name }}{% endblock %}
+{% block topbar %}<div class="topbar"><a class="brand" href="/">Research Portal Setup Kit</a><div class="right">
+  <a class="exit" href="/org/{{ org.folder }}/workspace">Workspace</a><a class="exit" href="/org/{{ org.folder }}/step/1">Setup</a><a class="exit" href="/org/{{ org.folder }}/people">People</a>{% include "_usernav.html" %}</div></div>{% endblock %}
+{% block body %}
+<div id="adminRoot" data-folder="{{ org.folder }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+  <div><h1>Admin: {{ org.name }}</h1>
+    <p class="lede">What members are asking, where the library falls short, and what it costs. Members are told that administrators can see their questions.</p></div>
+  <div><label class="lab" for="days">Period</label>
+    <select id="days" style="width:auto">{% for d, label in periods.items() %}<option value="{{ d }}" {{ 'selected' if d == days }}>{{ label }}</option>{% endfor %}</select></div>
+</div>
+
+<div id="adminTop">
+{% include "_admin_top.html" %}
+</div>
+
+<div class="card stack" style="margin-top:20px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div><h2 style="margin:0 0 4px">Question log</h2><p class="plain" style="margin:0">Every question, newest first. Open one to see the answer that was given.</p></div>
+    <a class="btn small line" id="csvLink" href="#" style="display:inline-flex;align-items:center">Download as spreadsheet (CSV)</a>
+  </div>
+  <div class="web-row" style="align-items:flex-end">
+    <div style="flex:1;min-width:200px"><label class="lab" for="q">Search the questions</label><input type="text" id="q" placeholder="e.g. treatment" maxlength="80"></div>
+    <div><label class="lab" for="who">Person</label><select id="who" style="width:auto"><option value="">Everyone</option>
+      {% for p in all_people %}<option value="{{ p.id if p.id else 'none' }}">{{ p.name }}</option>{% endfor %}</select></div>
+    <div><label class="lab" for="depth">Depth</label><select id="depth" style="width:auto"><option value="">Any</option><option value="quick">Quick</option><option value="standard">Standard</option><option value="deep">Deep</option></select></div>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="gapsOnly"> Only not fully answered</label>
+  </div>
+  <div id="adminLog">
+{% include "_admin_log.html" %}
+  </div>
+</div>
+</div>
+<script src="{{ static_v('js/admin.js') }}"></script>
+{% endblock %}

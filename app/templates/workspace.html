@@ -4,8 +4,8 @@
 <div class="topbar wsbar">
   <a class="wsbrand" href="/org/{{ org.folder }}/workspace">
     <span class="avatar sm" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
-    <span class="wsname">{{ org.name }}</span><span class="wspriv">Private to {{ org.name }}: only its members can open this</span></a>
-  <div class="right">{% if can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/step/6">← Setup</a>{% endif %}{% include "_usernav.html" %}</div>
+    <span class="wsname">{{ org.name }}</span><span class="wspriv">Private to {{ org.name }}: only its members can open this. Administrators can see the questions asked.</span></a>
+  <div class="right">{% if can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/admin">Admin</a><a class="exit" href="/org/{{ org.folder }}/step/6">← Setup</a>{% endif %}{% include "_usernav.html" %}</div>
 </div>
 {% endblock %}
 {% block pageclass %} wspage{% endblock %}

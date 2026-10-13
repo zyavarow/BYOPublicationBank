@@ -23,7 +23,7 @@ from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from app import access, auth_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import apikey, ask as asker, auth, bundle, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from pubbank import adminlog, apikey, ask as asker, auth, bundle, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -1208,6 +1208,46 @@ def workspace_ask(request: Request, folder: str, question: str = Form(""), role:
             c.close()
     sources.start(work)
     return {"job": jid}
+
+
+def _log_filters(days, who, depth, gaps, q):
+    return dict(days=days if days in adminlog.PERIODS else 30, who=who if who == "none" or who.isdigit() else "", depth=depth, gaps=bool(gaps), q=q[:80])
+
+
+@app.get("/org/{folder}/admin", response_class=HTMLResponse)
+def org_admin(request: Request, folder: str, days: int = 30, who: str = "", depth: str = "", gaps: int = 0, q: str = "", p: int = 1, partial: str = ""):
+    """Question log, gaps in the library and usage by person, for the organization's administrators."""
+    org = _org_or_404(folder)
+    if org is None:
+        return HTMLResponse("Unknown organization", status_code=404)
+    f = _log_filters(days, who, depth, gaps, q)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        ctx = dict(org=org, periods=adminlog.PERIODS, days=f["days"], roles=asker.ROLES, filtered=bool(f["who"] or f["depth"] or f["gaps"] or f["q"]))
+        if partial != "log":
+            ctx.update(summary=adminlog.summary(conn, oid, f["days"]), gaps=adminlog.gaps(conn, oid, f["days"]), people=adminlog.people(conn, oid, f["days"]),
+                       member_count=len(auth.people(conn, folder)), cap_note=f"limit ${float(org.get('daily_cap') or 5):.2f} per day")
+        if partial == "top":
+            return _page(request, "_admin_top.html", **ctx)
+        items, total, pages, page = adminlog.log_page(conn, oid, p, **f)
+        ctx.update(items=items, total=total, pages=pages, p=page)
+        if partial == "log":
+            return _page(request, "_admin_log.html", **ctx)
+        ctx.update(all_people=adminlog.people(conn, oid, 0))
+    return _page(request, "admin.html", **ctx)
+
+
+@app.get("/org/{folder}/admin/questions.csv")
+def org_admin_csv(request: Request, folder: str, days: int = 30, who: str = "", depth: str = "", gaps: int = 0, q: str = ""):
+    org = _org_or_404(folder)
+    if org is None:
+        return HTMLResponse("Unknown organization", status_code=404)
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        data = adminlog.export_csv(conn, oid, **_log_filters(days, who, depth, gaps, q))
+        auth.audit(conn, request.state.user["id"], "question_log_exported", folder)
+        conn.commit()
+    return Response(data, media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{folder}-questions.csv"'})
 
 
 @app.get("/org/{folder}/workspace/answer/{ask_id}")

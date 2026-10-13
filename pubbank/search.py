@@ -79,9 +79,24 @@ def _vectors(conn, org_id):
         hit = _cache.get(org_id)
         if hit and hit[0] == n:
             return hit[1], hit[2]
-    rows = conn.execute("SELECT id, embedding FROM chunks WHERE org_id = %s AND embedding IS NOT NULL ORDER BY id", (org_id,)).fetchall()
-    ids = np.array([r[0] for r in rows], dtype=np.int64)
-    mat = np.array([r[1] for r in rows], dtype=np.float32) if rows else np.zeros((0, embeddings.DIM), dtype=np.float32)
+    # filled in batches straight into one float32 table: fetching every vector as Python lists first needs about 10x the memory (a few hundred MB
+    # for a few thousand passages), which is too much for a small hosting plan
+    ids = np.empty(n, dtype=np.int64)
+    mat = np.empty((n, embeddings.DIM), dtype=np.float32)
+    i = 0
+    with conn.cursor(name="load_vectors") as cur:
+        cur.itersize = 500
+        cur.execute("SELECT id, embedding FROM chunks WHERE org_id = %s AND embedding IS NOT NULL ORDER BY id", (org_id,))
+        while i < n:
+            batch = cur.fetchmany(500)
+            if not batch:
+                break
+            for cid, vec in batch:
+                if i < n:
+                    ids[i], mat[i] = cid, vec
+                    i += 1
+    conn.commit()
+    ids, mat = ids[:i], mat[:i]
     with _lock:
         _cache[org_id] = (n, ids, mat)
     return ids, mat

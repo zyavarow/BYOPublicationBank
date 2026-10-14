@@ -18,37 +18,8 @@
 </div>
 
 {% else %}
-<div class="cols">
-  <div class="main-col stack s4-left">
-    <div class="card stack">
-      <h2>Teach it about this project</h2>
-      <div class="lab nomargin">Call transcripts, notes or documents</div>
-      <div class="uplist">
-        {% for u in uploads %}<div class="upitem"><span>{{ u.name }}</span><span class="badge ok">Processed</span><button type="button" class="x" data-del="{{ u.name }}" title="Remove">✕</button></div>
-        {% else %}<div class="hint nomargin">Nothing uploaded yet. Transcripts of calls with the organization work best.</div>{% endfor %}
-      </div>
-      <div class="logo-row"><label class="btn small upload line" for="docFiles">Add files<input type="file" id="docFiles" multiple accept=".txt,.md,.docx,.pdf"></label>
-        <span class="filenote" id="docNote">.txt, .md, .docx or .pdf, up to 5 MB each.</span></div>
-      <label class="lab mt6" for="notes">Anything else worth adding?</label>
-      <textarea id="notes" rows="3" placeholder="For example: two key papers disagree on efficacy, which turned out to be different antibodies.">{{ notes }}</textarea>
-      <div class="lab mt6">About the project <span class="opt">(used in every reading instruction)</span></div>
-      <textarea id="disease" rows="4">{{ view.disease }}</textarea>
-      <div class="actions spread"><span class="filenote" id="ctxNote"></span><button type="button" class="btn small line" id="saveCtx">Save description</button></div>
-      <div class="inputbox tight">
-        <div class="lab">Let the AI propose changes</div>
-        <p class="plain">Claude reads what you added above, a sample of your papers' abstracts, and the standard template, then suggests tailored fields, genes, options and a disease description. Nothing changes until you accept items below.</p>
-        <div class="costline"><strong>about {{ money(est.expected) }}</strong> <span>(at most {{ money(est.high) }})</span></div>
-        <label class="check"><input type="checkbox" id="propConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
-        <div class="actions spread">
-          <span class="count">{% if not est.has_material %}Add a transcript or notes first.{% elif not has_key %}No Anthropic API key is set on this computer.{% endif %}</span>
-          <button type="button" class="btn small" id="propBtn" disabled data-ready="{{ 1 if est.has_material and has_key else 0 }}">{{ 'Regenerate proposal' if proposal else 'Generate proposal' }}</button></div>
-        <div class="jobbox mt-m" id="jobBox" hidden role="status"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
-          <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
-      </div>
-    </div>
-
     {% if proposal %}
-    <div class="card stack" id="proposal">
+    <div class="card stack proposal-wide" id="proposal">
       <h2>The AI's proposal</h2>
       <p class="plain">{{ proposal.summary }}</p>
       <div class="hint">Read from {{ proposal._meta.documents|length }} document{{ '' if proposal._meta.documents|length == 1 else 's' }}{% if proposal._meta.cost %}; cost {{ money(proposal._meta.cost) }}{% endif %}. Everything below can be edited before you apply it.</div>
@@ -102,6 +73,35 @@
       <script id="propData" type="application/json">{{ proposal | tojson }}</script>
     </div>
     {% endif %}
+<div class="cols">
+  <div class="main-col stack s4-left">
+    <div class="card stack">
+      <h2>Teach it about this project</h2>
+      <div class="lab nomargin">Call transcripts, notes or documents</div>
+      <div class="uplist">
+        {% for u in uploads %}<div class="upitem"><span>{{ u.name }}</span><span class="badge ok">Processed</span><button type="button" class="x" data-del="{{ u.name }}" title="Remove">✕</button></div>
+        {% else %}<div class="hint nomargin">Nothing uploaded yet. Transcripts of calls with the organization work best.</div>{% endfor %}
+      </div>
+      <div class="logo-row"><label class="btn small upload line" for="docFiles">Add files<input type="file" id="docFiles" multiple accept=".txt,.md,.docx,.pdf"></label>
+        <span class="filenote" id="docNote">.txt, .md, .docx or .pdf, up to 5 MB each.</span></div>
+      <label class="lab mt6" for="notes">Anything else worth adding?</label>
+      <textarea id="notes" rows="3" placeholder="For example: two key papers disagree on efficacy, which turned out to be different antibodies.">{{ notes }}</textarea>
+      <div class="lab mt6">About the project <span class="opt">(used in every reading instruction)</span></div>
+      <textarea id="disease" rows="4">{{ view.disease }}</textarea>
+      <div class="actions spread"><span class="filenote" id="ctxNote"></span><button type="button" class="btn small line" id="saveCtx">Save description</button></div>
+      <div class="inputbox tight">
+        <div class="lab">Let the AI propose changes</div>
+        <p class="plain">Claude reads what you added above, a sample of your papers' abstracts, and the standard template, then suggests tailored fields, genes, options and a disease description. Nothing changes until you accept items below.</p>
+        <div class="costline"><strong>about {{ money(est.expected) }}</strong> <span>(at most {{ money(est.high) }})</span></div>
+        <label class="check"><input type="checkbox" id="propConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
+        <div class="actions spread">
+          <span class="count">{% if not est.has_material %}Add a transcript or notes first.{% elif not has_key %}No Anthropic API key is set on this computer.{% endif %}</span>
+          <button type="button" class="btn small" id="propBtn" disabled data-ready="{{ 1 if est.has_material and has_key else 0 }}">{{ 'Regenerate proposal' if proposal else 'Generate proposal' }}</button></div>
+        <div class="jobbox mt-m" id="jobBox" hidden role="status"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+          <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
+      </div>
+    </div>
+
   </div>
 
   <div class="side-col stack s4-right">

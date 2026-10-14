@@ -59,14 +59,6 @@
 <p class="lede">Open a paper, compare each answer with the quote beside it, and mark it. The scorecard updates as you go. Skip anything you cannot judge, or mark it Unsure.</p>
 {% if stale %}<div class="flash err">The template has changed since this sample was read, so these answers come from an older version. Start a new sample to see the current template's answers.</div>{% endif %}
 <div class="review4">
-  <aside class="card plist">
-    <div class="lab">Sample papers</div>
-    {% for p in papers %}
-    <a class="pitem {{ 'on' if loop.index0 == idx else '' }}" href="?paper={{ loop.index0 }}">
-      <span class="pt">{{ p.title }}</span><span class="pc">{{ done_rows.get(p.id, 0) }}/{{ answers_total or 10 }}</span></a>
-    {% endfor %}
-    <button type="button" class="btn line small mt-m" id="againBtn">Start a new sample</button>
-  </aside>
   <main class="stack">
     {% if cur %}
     <div class="card">
@@ -102,6 +94,7 @@
     {% else %}<div class="card soon"><p>No answers were saved for this paper (the read may have failed).</p></div>{% endif %}
     {% endif %}
   </main>
+  <div class="rail">
   <aside class="card score" id="scoreBox">
     <div class="lab">Scorecard</div>
     <div id="scoreBody"></div>
@@ -112,6 +105,15 @@
     </div>
     <div class="hint">Changing the template? Go back to step 4, then start a new sample to see the effect. A new sample costs again.</div>
   </aside>
+  <aside class="card plist">
+    <div class="lab">Sample papers</div>
+    {% for p in papers %}
+    <a class="pitem {{ 'on' if loop.index0 == idx else '' }}" href="?paper={{ loop.index0 }}">
+      <span class="pt">{{ p.title }}</span><span class="pc">{{ done_rows.get(p.id, 0) }}/{{ answers_total or 10 }}</span></a>
+    {% endfor %}
+    <button type="button" class="btn line small mt-m" id="againBtn">Start a new sample</button>
+  </aside>
+  </div>
 </div>
 <script id="scoreData" type="application/json">{{ score | tojson }}</script>
 {% endif %}

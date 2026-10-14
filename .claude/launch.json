@@ -4,8 +4,19 @@
     {
       "name": "setup-kit",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["scripts/run_app.py"],
+      "runtimeArgs": [
+        "scripts/run_app.py"
+      ],
       "port": 8000
+    },
+    {
+      "name": "scratch",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "scripts/dev/scratch_env.py",
+        "serve"
+      ],
+      "port": 8001
     }
   ]
 }

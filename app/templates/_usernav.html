@@ -1,5 +1,5 @@
 {# Who is signed in, with links to the account page and Sign out. Used in every top bar. #}
 {% if request.state.user %}
 <a class="exit" href="/account" title="Your account">{{ request.state.user.name or request.state.user.email }}</a>
-<form method="post" action="/logout" style="display:inline"><button type="submit" class="exit linkbtn">Sign out</button></form>
+<form method="post" action="/logout" class="inline"><button type="submit" class="exit linkbtn">Sign out</button></form>
 {% endif %}

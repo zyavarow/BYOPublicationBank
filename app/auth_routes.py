@@ -1,11 +1,12 @@
 """Sign-in, first-run, invitations, account and people pages."""
 import os
 import secrets
+import threading
 
 from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from pubbank import auth, orgs
+from pubbank import auth, mailer, orgs
 from pubbank.db import connect
 
 
@@ -86,7 +87,7 @@ def register(app, page):
                 return RedirectResponse("/first-run", status_code=303)
             if auth.user_for_token(conn, request.cookies.get(auth.COOKIE)):
                 return RedirectResponse(_safe_next(next), status_code=303)
-        return page(request, "login.html", next=_safe_next(next), err="", info=msg, email="")
+        return page(request, "login.html", next=_safe_next(next), err="", info=msg, email="", mail_ready=mailer.configured())
 
     @app.post("/login")
     def login_post(request: Request, email: str = Form(""), password: str = Form(""), next: str = Form("")):
@@ -95,13 +96,52 @@ def register(app, page):
             if not uid:
                 auth.audit(conn, None, "login_failed", auth.clean_email(email)[:120])
                 conn.commit()
-                return page(request, "login.html", next=_safe_next(next), err=err, info="", email=email, status_code=429 if err.startswith("Too many") else 400)
+                return page(request, "login.html", next=_safe_next(next), err=err, info="", email=email, mail_ready=mailer.configured(), status_code=429 if err.startswith("Too many") else 400)
             token = auth.new_session(conn, uid)
             auth.audit(conn, uid, "login")
             conn.commit()
         r = RedirectResponse(_safe_next(next), status_code=303)
         _set_cookie(r, token)
         return r
+
+    # ------------------------------------------------------------------------------------------ "Forgot your password?" by email
+    FORGOT_MAIL = (
+        "Hello,\n\nSomeone (hopefully you) asked to reset the password for this address on BYO Publication Bank.\n\n"
+        "Choose a new password here (the link works once and expires in 2 hours):\n{url}\n\n"
+        "If you did not ask for this, you can ignore this email: your password has not changed.\n")
+
+    def _forgot_send(to, url):
+        try:
+            mailer.send(to, "Reset your BYO Publication Bank password", FORGOT_MAIL.format(url=url))
+        except Exception as e:   # never shown to the visitor (it would reveal which addresses have accounts); the owner sees it in the host log
+            print(f"[mail] could not send a reset email: {type(e).__name__}", flush=True)
+
+    @app.get("/forgot", response_class=HTMLResponse)
+    def forgot(request: Request):
+        if not mailer.configured():
+            return RedirectResponse("/login", status_code=303)
+        return page(request, "forgot.html", sent=False, err="", email="")
+
+    @app.post("/forgot", response_class=HTMLResponse)
+    def forgot_post(request: Request, email: str = Form("")):
+        if not mailer.configured():
+            return RedirectResponse("/login", status_code=303)
+        e = auth.clean_email(email)
+        if not e:
+            return page(request, "forgot.html", sent=False, err="Enter the email address you sign in with.", email=email, status_code=400)
+        ip = _client_ip(request)
+        with connect() as conn:
+            # at most 3 requests per address and 10 per visitor per hour, so this cannot be used to flood someone's inbox
+            per_email = conn.execute("SELECT count(*) FROM audit_log WHERE action = 'forgot_requested' AND detail LIKE %s AND at > now() - interval '1 hour'", (f"%|{e}",)).fetchone()[0]
+            per_ip = conn.execute("SELECT count(*) FROM audit_log WHERE action = 'forgot_requested' AND detail LIKE %s AND at > now() - interval '1 hour'", (f"{ip}|%",)).fetchone()[0]
+            auth.audit(conn, None, "forgot_requested", f"{ip}|{e}"[:300])
+            user = auth.user_by_email(conn, e)
+            if user and user["active"] and per_email < 3 and per_ip < 10:
+                token = auth.make_link(conn, e, None, None, None, purpose="reset", hours=2)
+                url = mailer.base_url(request) + "/invite/" + token
+                threading.Thread(target=_forgot_send, args=(e, url), daemon=True).start()
+            conn.commit()
+        return page(request, "forgot.html", sent=True, err="", email=e)
 
     @app.post("/logout")
     def logout(request: Request):

@@ -1,13 +1,15 @@
 {% macro steps(org, current) %}
-{% set names = ["Organization & Branding", "Publication Bank", "Clean up the bank", "Extraction Schema", "Check a sample", "Review & Launch"] %}
-<div class="steps">
+{% set names = ["Organization & look", "Publication bank", "Clean up the publication bank", "Extraction schema", "Check a sample", "Review & launch"] %}
+<nav class="toc" aria-label="Setup steps">
+  <div class="mono head">Contents</div>
+  <ol>
   {% for n in names %}
     {% set i = loop.index %}
-    <a class="step {{ 'current' if i == current else ('done' if i < current else '') }}" href="/org/{{ org.folder }}/step/{{ i }}">
-      <span class="dot">{% if i < current %}✓{% else %}{{ i }}{% endif %}</span>
-      <span class="name">{{ n }}{% if i == 3 or i == 5 %}<small class="rec">recommended</small>{% endif %}</span>
-    </a>
-    {% if not loop.last %}<span class="bar"></span>{% endif %}
+    <li class="{{ 'current' if i == current else ('done' if i < current else '') }}"><a href="/org/{{ org.folder }}/step/{{ i }}"{% if i == current %} aria-current="step"{% endif %}>
+      <span class="no">{% if i < current %}✓{% else %}{{ '%02d' % i }}{% endif %}</span>
+      <span>{{ n }}{% if i == 3 or i == 5 %}<em class="rec">recommended</em>{% endif %}</span></a></li>
   {% endfor %}
-</div>
+  </ol>
+</nav>
+<div class="stepline mono">Step {{ current }} of 6 · {{ names[current - 1] }}{% if current > 1 %} · <a href="/org/{{ org.folder }}/step/{{ current - 1 }}">← back</a>{% endif %}</div>
 {% endmacro %}

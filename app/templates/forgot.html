@@ -1,0 +1,18 @@
+{% extends "auth_base.html" %}
+{% block title %}Reset your password · BYO Publication Bank{% endblock %}
+{% block auth %}
+<h1>Reset your password</h1>
+{% if sent %}
+<p class="tagline">If an account exists for <strong>{{ email }}</strong>, we have emailed it a link to choose a new password. The link works once and expires in 2 hours.</p>
+<p class="after"><strong>Nothing arrived?</strong> Check your spam folder, then try again in a few minutes. You can also ask an administrator of your organization for a reset link.</p>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+{% else %}
+<p class="tagline">Enter the email address you sign in with and we will send you a link to choose a new password.</p>
+{% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+<form method="post" action="/forgot">
+  <div><label class="lab" for="email">Email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
+  <button class="btn" type="submit">Email me a reset link</button>
+</form>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+{% endif %}
+{% endblock %}

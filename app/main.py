@@ -379,7 +379,7 @@ def step2(request: Request, folder: str, q: str = "", status: str = "", p: int =
         counts = bank.counts(conn, oid)
         items, total, pages, p = bank.page(conn, oid, q.strip(), status, p)
         idx = search_index.status(conn, oid)
-    return _page(request, "step2.html", org=org, idx=idx, counts=counts, items=items, total=total, pages=pages, p=p, q=q, status=status,
+    return _page(request, "step2.html", org=org, idx=idx, running_job=sources.running_import(oid), counts=counts, items=items, total=total, pages=pages, p=p, q=q, status=status,
                  statuses=bank.STATUS_LABELS)
 
 
@@ -807,6 +807,9 @@ def job_status(request: Request, folder: str, job_id: str):
         return JSONResponse({"error": "You do not have access to this."}, status_code=403)      # members may follow their own questions, nothing else
     out = {k: job[k] for k in ("stage", "done", "total", "finished", "error", "result", "label", "hint")}
     out["elapsed"] = round(time.time() - job["started"])
+    out["stage_elapsed"] = round(time.time() - job.get("stage_started", job["started"]))
+    out["step"], out["steps"] = sources.step_info(job)
+    out["note"], out["unit"] = job.get("note", ""), job.get("unit", "")
     return out
 
 

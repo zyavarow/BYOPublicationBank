@@ -450,17 +450,53 @@ def running_job(org_id, kind):
         return next((j["id"] for j in JOBS.values() if j["org_id"] == org_id and j["kind"] == kind and not j["finished"]), None)
 
 
+# What the person sees for each stage of a background job: a short note, the unit being counted, and its place in the plan of steps.
+STAGE_NOTES = {
+    "Matching references to PubMed": "Finding each reference in PubMed. This is quick.",
+    "Fetching records from PubMed": "Looking up each paper's title, authors and abstract at PubMed. This is quick.",
+    "Checking for open-access full text": "Downloading the full text of papers that PubMed Central makes free. Papers without it stay abstract-only.",
+    "Preparing the new papers for search": "A new step is starting: each new paper is read and indexed so questions can find it.",
+    "Cutting papers into passages": "New step: splitting each paper into short passages. Every answer is cited to a passage.",
+    "Preparing papers for search": ("New step, and the slowest: the search model is reading each paper so questions can find it. "
+                                    "You can close this window; it keeps running on the server, so check back later on this page. "
+                                    "If it is ever interrupted, a \"Not yet searchable\" notice lets you finish it."),
+    "Building the search index": "Reading each paper so questions can find it. You can close this window; it keeps running on the server, so check back later.",
+}
+STAGE_UNITS = {"Matching references to PubMed": "references", "Fetching records from PubMed": "papers", "Checking for open-access full text": "papers",
+               "Cutting papers into passages": "papers", "Preparing papers for search": "papers"}
+PREP_STAGES = {"Preparing the new papers for search", "Cutting papers into passages", "Preparing papers for search", "Building the search index"}
+STEP_PLANS = {"pmid": ["Fetching records from PubMed", "Checking for open-access full text", "prep"],
+              "reference": ["Matching references to PubMed", "Fetching records from PubMed", "Checking for open-access full text", "prep"]}
+
+
+def step_info(job):
+    """(step number, number of steps) for an import, so people can see this is step 3 of 3 and not a repeat of step 1."""
+    plan = STEP_PLANS.get(job.get("kind"))
+    key = "prep" if job.get("stage") in PREP_STAGES else job.get("stage")
+    return (plan.index(key) + 1, len(plan)) if plan and key in plan else (None, None)
+
+
+def running_import(org_id):
+    """Id of any unfinished background job of this organization that people may be waiting on (not a question being answered)."""
+    with _lock:
+        return next((j["id"] for j in JOBS.values() if j["org_id"] == org_id and j["kind"] != "ask" and not j["finished"]), None)
+
+
 def new_job(kind, label, org_id=None, hint=""):
     jid = hashlib.sha1(f"{kind}{label}{time.time()}".encode()).hexdigest()[:10]
     with _lock:
         JOBS[jid] = {"id": jid, "kind": kind, "label": label, "org_id": org_id, "hint": hint, "stage": "starting", "done": 0, "total": 0, "finished": False,
-                     "error": None, "result": None, "started": time.time()}
+                     "error": None, "result": None, "started": time.time(), "stage_started": time.time()}
     return jid
 
 
 def _set(jid, **kw):
     with _lock:
-        JOBS[jid].update(kw)
+        j = JOBS[jid]
+        if "stage" in kw and kw["stage"] != j.get("stage"):
+            j["stage_started"] = time.time()          # lets the progress bar time each stage on its own
+            j["note"], j["unit"] = STAGE_NOTES.get(kw["stage"], ""), STAGE_UNITS.get(kw["stage"], "")
+        j.update(kw)
 
 
 def get_job(jid):

@@ -75,9 +75,14 @@ def _forward(ids, mask, w, cfg):
         q = (lin("attention.self.query", x) * (1.0 / math.sqrt(d))).reshape(n, t, heads, d).transpose(0, 2, 1, 3)
         k = lin("attention.self.key", x).reshape(n, t, heads, d).transpose(0, 2, 1, 3)
         v = lin("attention.self.value", x).reshape(n, t, heads, d).transpose(0, 2, 1, 3)
-        s = (q @ k.transpose(0, 1, 3, 2)) + bias
-        s = np.exp(s - s.max(-1, keepdims=True))
-        a = (s / s.sum(-1, keepdims=True)) @ v
+        # the attention scores are the biggest array (batch x heads x tokens x tokens): work on one copy in place, so a small server does not run out of memory
+        s = q @ k.transpose(0, 1, 3, 2)
+        s += bias
+        s -= s.max(-1, keepdims=True)
+        np.exp(s, out=s)
+        s /= s.sum(-1, keepdims=True)
+        a = s @ v
+        del s
         a = a.transpose(0, 2, 1, 3).reshape(n, t, h)
         x = _layer_norm(x + lin("attention.output.dense", a), w[p + "attention.output.LayerNorm.weight"], w[p + "attention.output.LayerNorm.bias"], eps)
         f = lin("output.dense", _gelu(lin("intermediate.dense", x)))
@@ -85,7 +90,7 @@ def _forward(ids, mask, w, cfg):
     return x[:, 0]
 
 
-def embed(texts, query=False, batch_size=16, on_progress=None):
+def embed(texts, query=False, batch_size=4, on_progress=None):
     """Unit-length vectors, one row per text (float32 array, shape [n, 384]). Set query=True for search questions."""
     tok, w, cfg = _load()
     if query:

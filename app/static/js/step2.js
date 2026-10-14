@@ -119,6 +119,15 @@
 
   // jobs
   const box = $("jobBox");
+  // a job is already running (for example, someone closed the window and came back): show its progress again
+  const running = $("addCard").dataset.running;
+  if (running) {
+    const buttons = ["pmidGo", "refGo", "pdfGo", "folderGo"].map($).filter(Boolean);
+    buttons.forEach((b) => (b.disabled = true));
+    box.hidden = false;
+    // the shared progress script loads after this one, so wait until the page is complete
+    window.addEventListener("load", () => watchJob(folder, running, { onFail: (m) => fail(m, buttons), onDone: (x) => done(x, buttons) }));
+  }
   async function start(request, buttons, after) {
     buttons.forEach((b) => (b.disabled = true));
     box.hidden = false;
@@ -148,7 +157,9 @@
   }
   function done(x, buttons) {
     let lines;
-    if (x.kind === "pdf") {
+    if (x.kind === "index") {
+      lines = ["The search index is up to date."];
+    } else if (x.kind === "pdf") {
       lines = [`${x.added} new PDF${x.added === 1 ? "" : "s"} read. The bank now holds ${x.in_bank} papers.`];
       if (x.duplicate) lines.push(`${x.duplicate} duplicate copies are set aside.`);
       if (x.ocr) lines.push(`${x.ocr} scanned files needing text recognition are set aside.`);

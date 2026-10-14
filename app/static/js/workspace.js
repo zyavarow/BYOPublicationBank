@@ -168,12 +168,13 @@
       for (const x of s.extracted || []) { const [k, ...v] = x.split(": "); tags.appendChild(el("span", "tag" + (k === "Reagents" ? " warn" : ""), (k === "Study" ? "" : k + ": ") + v.join(": ").slice(0, 70))); }
       body.appendChild(tags);
       const links = el("div", "srclinks");
-      const noun = `passage${s.passages.length === 1 ? "" : "s"}`;
-      const tog = el("button", "linkbtn", `Show the ${s.passages.length} ${noun} ↓`);
+      const passagesOf = s.passages || [];
+      const noun = `passage${passagesOf.length === 1 ? "" : "s"}`;
+      const tog = el("button", "linkbtn", `Show the ${passagesOf.length} ${noun} ↓`);
       tog.type = "button";
       const pass = el("div", "passages"); pass.hidden = true;
-      for (const p of s.passages) { const q = el("blockquote"); q.appendChild(document.createTextNode(p.text)); q.appendChild(el("cite", "", [p.heading, p.page ? "p." + p.page : ""].filter(Boolean).join(", "))); pass.appendChild(q); }
-      tog.addEventListener("click", () => { pass.hidden = !pass.hidden; tog.textContent = pass.hidden ? `Show the ${s.passages.length} ${noun} ↓` : `Hide the ${noun} ↑`; });
+      for (const p of passagesOf) { const q = el("blockquote"); q.appendChild(document.createTextNode(p.text)); q.appendChild(el("cite", "", [p.heading, p.page ? "p." + p.page : ""].filter(Boolean).join(", "))); pass.appendChild(q); }
+      tog.addEventListener("click", () => { pass.hidden = !pass.hidden; tog.textContent = pass.hidden ? `Show the ${passagesOf.length} ${noun} ↓` : `Hide the ${noun} ↑`; });
       links.appendChild(tog);
       if (s.pmid) { const a = el("a", "linkbtn", "PubMed ↗"); a.href = "https://pubmed.ncbi.nlm.nih.gov/" + s.pmid + "/"; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
       if (s.doi) { const a = el("a", "linkbtn", "DOI ↗"); a.href = "https://doi.org/" + s.doi; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
@@ -223,5 +224,6 @@
     bi.disabled = true;
     const d = await (await fetch(`/org/${folder}/index/build`, { method: "POST" })).json();
     if (d.job) watchJob(folder, d.job, { onFail: (m) => alert(m), onDone: () => location.reload() });
+    else { bi.disabled = false; alert(d.error || "That could not be started."); }
   });
 })();

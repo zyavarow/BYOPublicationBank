@@ -7,7 +7,7 @@
 <h1>Build the publication bank</h1>
 <p class="lede">Three ways in. Use whichever matches what you have, and mix them freely: each paper is added once, even if it arrives by more than one route.</p>
 
-<div id="addCard" data-folder="{{ org.folder }}">
+<div id="addCard" data-folder="{{ org.folder }}"{% if running_job %} data-running="{{ running_job }}"{% endif %}>
   <div class="routes" role="tablist">
     <button type="button" class="tab" data-tab="pdf" role="tab"><span class="rt-k">Route A</span><span class="rt-n">Folder of PDFs</span><span class="rt-s">Full text, slowest</span></button>
     <button type="button" class="tab" data-tab="ref" role="tab"><span class="rt-k">Route B</span><span class="rt-n">Reference manager export</span><span class="rt-s">Your curated list</span></button>
@@ -100,7 +100,7 @@
   </div>
 </div>
 
-{% if idx.pending_papers or (idx.chunks and idx.embedded < idx.chunks) %}
+{% if not running_job and (idx.pending_papers or (idx.chunks and idx.embedded < idx.chunks)) %}
 <div class="callout warn notsearch" id="indexNotice" role="status">
   <div class="ctitle">Not yet searchable</div>
   {% if idx.pending_papers %}<strong>{{ idx.pending_papers }}</strong> paper{{ '' if idx.pending_papers == 1 else 's' }} in the bank {{ 'has' if idx.pending_papers == 1 else 'have' }} not been cut into passages, so questions cannot find {{ 'it' if idx.pending_papers == 1 else 'them' }} yet.{% endif %}

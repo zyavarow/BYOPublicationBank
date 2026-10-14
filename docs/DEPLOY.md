@@ -74,6 +74,7 @@ It tries every address the app has without signing in and reports anything that 
 
 Measured on the laptop with the DADA2 library (537 papers, 17,942 passages): the web app uses about 350 MB of memory once it has loaded
 the search model and all passage vectors (about 150 MB for the program, 135 MB for the model, 30 MB for the vectors), with brief peaks to about 420 MB.
+- **Importing and indexing use extra memory:** adding papers (PubMed IDs, reference lists, PDFs) also prepares them for search inside the web service. The search model works through passages in small batches that add about 70 MB at the peak (an earlier version added over 600 MB for full-length passages and ran a 0.5 to 1 GB service out of memory). Give the web service **1 GB** if you plan to import papers online; 0.5 GB only suits answering questions on a finished library.
 - **Web service:** 0.5 GB of memory is enough for the demo but leaves little room; 1 GB is comfortable. Two CPUs is plenty (a question needs about one second of computing for the search step).
 - **Database service:** 0.5 GB of memory is enough. The database is about 150 MB, so give its volume at least 1 GB (loading the backup temporarily needs extra room for building indexes).
 - A much larger library grows this roughly in proportion to the number of passages (about 1.5 MB per 1,000 passages for the vectors).
@@ -88,6 +89,8 @@ the search model and all passage vectors (about 150 MB for the program, 135 MB f
 - **Backups:** turn on backups for the database service if your plan offers them. The laptop's `scripts/backup_db.py` still works against the laptop copy.
 
 ## Optional: "Forgot your password?" by email
+
+**Railway note (checked October 2026):** Railway's Hobby plan blocks outgoing email over the standard ports (25, 465, 587), according to Railway staff replies in their support forum. On Hobby, do NOT set the variables below: the "Email me a reset link" button would appear but emails would silently fail (connections time out; only the logs show it). Pro reportedly allows it after a redeploy. A way to send through a web-based email service, which works on any plan, is planned. Until then, on Hobby, leave these unset and people ask an administrator for a reset link (People page).
 
 Without email, people ask an administrator for a reset link (People page). To let people reset their own password, add these variables to the app service. Use any mail provider's standard (SMTP) details; the provider's help page usually calls them "SMTP settings". Enter them in the host's settings page, never in chat or in the code.
 

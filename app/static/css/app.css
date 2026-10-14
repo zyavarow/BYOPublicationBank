@@ -569,3 +569,6 @@ details.how .held { margin: 6px 0; padding: 8px 12px; background: var(--warn-bg)
 .proposal-wide .pitemrow textarea { max-width: 100%; }
 .proposal-wide .gtbl { table-layout: fixed; } .proposal-wide .gtbl th:nth-child(1) { width: 16%; } .proposal-wide .gtbl th:nth-child(2) { width: 26%; } .proposal-wide .gtbl th:nth-child(3) { width: 20%; } .proposal-wide .gtbl th:last-child { width: 36px; }
 .s4-left { flex: 1; } .s4-right { flex: 1; }
+
+/* background job: plain-language note under the stage line */
+.jobnote { font-size: 15.5px; font-style: italic; color: var(--label); margin: -2px 0 10px; line-height: 1.45; } .jobnote:empty { display: none; }

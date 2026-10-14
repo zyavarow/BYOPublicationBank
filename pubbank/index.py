@@ -93,7 +93,17 @@ def build(org_id, rebuild=False, on_progress=None, stop=lambda: False):
     conn = connect()
     try:
         chunk_new_papers(conn, org_id, rebuild, on_progress)
-        embed_pending(conn, org_id, on_progress=on_progress, stop=stop)
+        # the slow step is reported in whole papers (a person can picture 54 of 135 papers; 1,800 of 6,400 passages means little)
+        ids = [r[0] for r in conn.execute("SELECT DISTINCT paper_id FROM chunks WHERE org_id = %s AND embedding IS NULL", (org_id,))]
+
+        def per_paper(_stage, _done, _total):
+            if on_progress and ids:
+                waiting = conn.execute("SELECT count(DISTINCT paper_id) FROM chunks WHERE org_id = %s AND embedding IS NULL AND paper_id = ANY(%s)",
+                                       (org_id, ids)).fetchone()[0]
+                on_progress("Preparing papers for search", len(ids) - waiting, len(ids))
+        if on_progress and ids:
+            on_progress("Preparing papers for search", 0, len(ids))
+        embed_pending(conn, org_id, on_progress=per_paper, stop=stop)
         return status(conn, org_id)
     finally:
         conn.close()

@@ -86,3 +86,17 @@ the search model and all passage vectors (about 150 MB for the program, 135 MB f
 - **Background jobs** live in the running program's memory. If the site restarts during a job (a topic check, for instance), the job stops and can be run again. A full-library extraction survives restarts, because its state is in the database.
 - **Handing over:** the foundation will later deploy its own fresh copy from the same code under *its* hosting account, enter its own Anthropic key, and run extraction itself. Delete this test installation when that is done.
 - **Backups:** turn on backups for the database service if your plan offers them. The laptop's `scripts/backup_db.py` still works against the laptop copy.
+
+## Optional: "Forgot your password?" by email
+
+Without email, people ask an administrator for a reset link (People page). To let people reset their own password, add these variables to the app service. Use any mail provider's standard (SMTP) details; the provider's help page usually calls them "SMTP settings". Enter them in the host's settings page, never in chat or in the code.
+
+| Variable | What it is |
+|---|---|
+| `PUBBANK_SMTP_HOST` | The mail server's address (for example `smtp.example.com`). |
+| `PUBBANK_SMTP_PORT` | Usually `587` (the default). `465` also works. |
+| `PUBBANK_SMTP_USER`, `PUBBANK_SMTP_PASSWORD` | The mail account's login (many providers want an "app password"). |
+| `PUBBANK_MAIL_FROM` | The address people see the email come from. |
+| `PUBBANK_BASE_URL` | Optional: the site's public address (for example `https://yourname.up.railway.app`), used inside emailed links. |
+
+Once `PUBBANK_SMTP_HOST` and `PUBBANK_MAIL_FROM` are set, the sign-in page shows "Email me a reset link". The reply is the same whether or not the address has an account, links work once and expire in 2 hours, and each address can request at most 3 per hour. If the settings are missing, the page keeps the old text.

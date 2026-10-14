@@ -3,23 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Research Portal Setup Kit{% endblock %}</title>
+<title>{% block title %}BYO Publication Bank{% endblock %}</title>
 <link rel="stylesheet" href="{{ static_v('css/app.css') }}">
 {% block head %}{% endblock %}
 </head>
-<body>
-{% block topbar %}<div class="topbar">
-  <a class="brand" href="/">Research Portal Setup Kit</a>
-  <div class="right">
+<body style="{{ brand_vars(org if org is defined else None) }}">
+<div class="brandbar"></div>
+{% block topbar %}<header class="topbar">
+  <a class="brand" href="/">BYO Publication Bank{% if org is defined and org.name %} <span class="sub">setup for {{ org.name }}</span>{% endif %}</a>
+  <nav class="right" aria-label="Account">
     <a class="exit" href="/">Save &amp; exit</a>
     {% if org is defined and can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/admin">Admin</a><a class="exit" href="/org/{{ org.folder }}/people">People</a>{% endif %}
     {% include "_usernav.html" %}
-  </div>
-</div>{% endblock %}
-<div class="page{% block pageclass %}{% endblock %}">
-{% if flash %}<div class="flash {{ 'err' if flash_error else '' }}">{{ flash }}</div>{% endif %}
+  </nav>
+</header>{% endblock %}
+<main class="page{% block pageclass %}{% endblock %}">
+{% if flash %}<div class="flash {{ 'err' if flash_error else '' }}" role="status">{{ flash }}</div>{% endif %}
 {% block body %}{% endblock %}
-</div>
+</main>
 <script src="{{ static_v('js/progress.js') }}"></script>
 </body>
 </html>

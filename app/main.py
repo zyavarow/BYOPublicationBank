@@ -40,6 +40,43 @@ templates.env.globals["static_v"] = _static_v
 templates.env.globals["can_admin"] = lambda user, folder: auth.allows(user, folder, "admin")
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
+
+def _lum(hex_color):
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+
+
+def _contrast(a, b):
+    la, lb = sorted((_lum(a), _lum(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def _mix(a, b, t):
+    ha, hb = a.lstrip("#"), b.lstrip("#")
+    return "#" + "".join(f"{round(int(ha[i:i + 2], 16) * (1 - t) + int(hb[i:i + 2], 16) * t):02X}" for i in (0, 2, 4))
+
+
+def _brand_vars(org=None):
+    """CSS variables for an organization's colors. Whatever colors it picks, text on them stays readable:
+    --on-primary is white or near-black, and --link/--on-accent-text are darkened until they pass 4.5:1 on the paper background."""
+    ink, paper = "#1E1C18", "#F7F4EC"
+    ok = lambda c: bool(re.fullmatch(r"#[0-9a-fA-F]{6}", c or ""))
+    primary = org.get("primary") if org and ok(org.get("primary")) else ink
+    accent = org.get("accent") if org and ok(org.get("accent")) else "#B5592E"
+    def readable(c):
+        t = 0.0
+        while _contrast(_mix(c, ink, t), paper) < 4.5 and t < 1:
+            t += 0.05
+        return _mix(c, ink, t)
+    on_primary = "#FFFFFF" if _contrast(primary, "#FFFFFF") >= 4.5 else ink
+    on_accent = "#FFFFFF" if _contrast(accent, "#FFFFFF") >= 4.5 else ink
+    return f"--primary:{primary};--accent:{accent};--on-primary:{on_primary};--on-accent:{on_accent};--link:{readable(primary)};--accent-text:{readable(accent)}"
+
+
+templates.env.globals["brand_vars"] = _brand_vars
+
 STEP_TITLES = {}
 LOGO_MAX, GUIDE_MAX = 2 * 1024 * 1024, 20 * 1024 * 1024
 REFERENCE_MAX = 25 * 1024 * 1024

@@ -11,8 +11,28 @@
     for (const b of document.querySelectorAll(sel)) b.addEventListener("click", () => {
       state[key] = b.dataset[attr];
       for (const o of document.querySelectorAll(sel)) o.classList.toggle("on", o === b);
+      const pick = b.closest(".pick");
+      if (pick) { pick.querySelector(".tval").textContent = b.dataset.word; closeMenus(); }
     });
   }
+  // the small menus in the "Answering as ..." sentence
+  function closeMenus() {
+    for (const m of document.querySelectorAll(".menu")) m.hidden = true;
+    for (const t of document.querySelectorAll(".trig")) t.setAttribute("aria-expanded", "false");
+  }
+  for (const t of document.querySelectorAll(".trig")) t.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const menu = t.parentElement.querySelector(".menu"), wasHidden = menu.hidden;
+    closeMenus();
+    menu.hidden = !wasHidden; t.setAttribute("aria-expanded", String(wasHidden));
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".menu")) closeMenus(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+  const moreBtn = $("moreFilters");
+  if (moreBtn) moreBtn.addEventListener("click", () => {
+    for (const x of document.querySelectorAll("[data-extra]")) x.hidden = false;
+    moreBtn.hidden = true;
+  });
 
   // filter chips: a panel of the values found by the extraction
   const facets = {};
@@ -34,7 +54,7 @@
         cb.checked ? set.add(v.value) : set.delete(v.value);
         if (set.size) state.filters[f.id] = [...set]; else delete state.filters[f.id];
         chip.classList.toggle("on", !!state.filters[f.id]);
-        chip.textContent = (state.filters[f.id] ? "✓ " : "") + chip.dataset.label + (state.filters[f.id] ? ` (${state.filters[f.id].length})` : "");
+        chip.textContent = state.filters[f.id] ? `${chip.dataset.label}: ${state.filters[f.id].length} chosen` : "any " + chip.dataset.label.toLowerCase();
       });
       lab.append(cb, document.createTextNode(` ${v.value} `), el("small", "faint", `${v.papers}`));
       panel.appendChild(lab);
@@ -62,53 +82,64 @@
   $("question").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   for (const b of document.querySelectorAll(".sg")) b.addEventListener("click", () => { $("question").value = b.textContent; go(); });
 
-  // an answer card
+  // an answer: question, strength of evidence, cited paragraphs, what is not covered, where sources differ, sources
+  const METER = { high: 5, medium: 3, low: 1 };
   function renderAnswer(r) {
     const a = r.answer, box = $("answer");
     box.textContent = "";
-    box.appendChild(el("div", "qshow", r.question));
-    const card = el("div", "card anscard");
-    const head = el("div", "anshead");
-    head.appendChild(el("span", "anslab", "Answer"));
-    const badges = el("div", "badges");
-    const conf = el("span", "cbadge conf-" + a.confidence.toLowerCase(), "Confidence: " + a.confidence);
-    conf.title = (a.confidence_reason ? a.confidence_reason + " " : "") + (a.confidence_basis || "");
-    badges.appendChild(conf);
-    badges.appendChild(el("span", "cbadge", `${a.papers_cited || 0} paper${a.papers_cited === 1 ? "" : "s"} · ${Math.round(a.seconds)} sec · $${a.cost.toFixed(3)}`));
-    head.appendChild(badges); card.appendChild(head);
-    if (!a.paragraphs.length) card.appendChild(el("p", "ansp faint", "Nothing in the library matched this question."));
-    for (const p of a.paragraphs) card.appendChild(cited(p.text));
-    card.appendChild(el("div", "basis", a.confidence_reason + " " + (a.confidence_basis || "")));
-    box.appendChild(card);
+    box.appendChild(el("div", "eyebrow link", "Your question"));
+    box.appendChild(el("h1", "qshow", r.question));
+    const lvl = a.confidence.toLowerCase();
+    const strip = el("div", "evstrip");
+    strip.appendChild(el("span", "lab2", "Strength of evidence"));
+    const meter = el("span", "meter"); meter.setAttribute("role", "img"); meter.setAttribute("aria-label", `${METER[lvl] || 1} of 5: ${lvl}`);
+    for (let i = 0; i < 5; i++) meter.appendChild(el("i", i < (METER[lvl] || 1) ? "" : "off"));
+    strip.appendChild(meter);
+    strip.appendChild(el("span", "level", a.confidence));
+    strip.appendChild(el("span", "stats2", [`${a.papers_cited || 0} paper${a.papers_cited === 1 ? "" : "s"}`, Number.isFinite(a.seconds) ? `${Math.round(a.seconds)} s` : "", `$${(a.cost || 0).toFixed(3)}`].filter(Boolean).join(" · ")));
+    box.appendChild(strip);
+    const body = el("div", "anscard");
+    if (!a.paragraphs.length) body.appendChild(el("p", "ansp faint", "Nothing in the library matched this question."));
+    for (const p of a.paragraphs) body.appendChild(cited(p.text));
+    box.appendChild(body);
+    box.appendChild(el("p", "basis", [a.confidence_reason, a.confidence_basis].filter(Boolean).join(" ")));
     if (a.not_covered && a.not_covered.length) {
-      const c = el("div", "callout notcov");
-      c.appendChild(el("div", "ctitle", "Not covered by this library"));
+      const c = el("section", "callout notcov");
+      c.appendChild(el("h2", "ctitle", "Not covered by this library"));
       const ul = el("ul"); a.not_covered.forEach((x) => ul.appendChild(el("li", "", x))); c.appendChild(ul); box.appendChild(c);
     }
     if (a.disagreements && a.disagreements.length) {
-      const c = el("div", "callout disag");
-      c.appendChild(el("div", "ctitle", "Where the sources differ"));
+      const c = el("section", "callout disag");
+      c.appendChild(el("h2", "ctitle", "Where the sources differ"));
       const ul = el("ul"); a.disagreements.forEach((x) => ul.appendChild(cited(x, "li"))); c.appendChild(ul); box.appendChild(c);
     }
     renderSources(box, r.sources);
   }
-  // text with [n] markers becomes links to the sources
+  // text with [n] markers: a run such as [1][2] becomes one small raised "1,2" whose numbers link to the sources
+  function jumpTo(n) { const s = $("src-" + n); if (s) { s.scrollIntoView({ behavior: "smooth", block: "center" }); s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1600); } }
   function cited(text, tag) {
     const p = el(tag || "p", tag ? "" : "ansp");
     let last = 0;
-    for (const m of text.matchAll(/\[(\d+)\]/g)) {
+    for (const m of text.matchAll(/(?:\[\d+\][,\s]*)+/g)) {
       p.appendChild(document.createTextNode(text.slice(last, m.index)));
-      const a = el("a", "cite", `[${m[1]}]`); a.href = "#src-" + m[1];
-      a.addEventListener("click", (e) => { e.preventDefault(); const s = $("src-" + m[1]); if (s) { s.scrollIntoView({ behavior: "smooth", block: "center" }); s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1600); } });
-      p.appendChild(a); last = m.index + m[0].length;
+      const sup = el("sup", "cites");
+      [...m[0].matchAll(/\d+/g)].forEach((n, i) => {
+        if (i) sup.appendChild(document.createTextNode(","));
+        const a = el("a", "cite", n[0]); a.href = "#src-" + n[0];
+        a.addEventListener("click", (e) => { e.preventDefault(); jumpTo(n[0]); });
+        sup.appendChild(a);
+      });
+      p.appendChild(sup);
+      if (/\s$/.test(m[0])) p.appendChild(document.createTextNode(" "));
+      last = m.index + m[0].length;
     }
     p.appendChild(document.createTextNode(text.slice(last)));
     return p;
   }
   function renderSources(box, sources) {
     if (!sources.length) return;
-    const card = el("div", "card srccard");
-    card.appendChild(el("div", "srchead", `Sources (${sources.length})`));
+    const card = el("section", "srccard");
+    card.appendChild(el("h2", "srchead", "Sources"));
     for (const s of sources) {
       const row = el("div", "src"); row.id = "src-" + s.no;
       row.appendChild(el("span", "srcno", s.no));
@@ -121,13 +152,15 @@
       for (const x of s.extracted || []) { const [k, ...v] = x.split(": "); tags.appendChild(el("span", "tag" + (k === "Reagents" ? " warn" : ""), (k === "Study" ? "" : k + ": ") + v.join(": ").slice(0, 70))); }
       body.appendChild(tags);
       const links = el("div", "srclinks");
-      const tog = el("button", "linkbtn", `Show the ${s.passages.length} passage${s.passages.length === 1 ? "" : "s"}`);
+      const noun = `passage${s.passages.length === 1 ? "" : "s"}`;
+      const tog = el("button", "linkbtn", `Show the ${s.passages.length} ${noun} ↓`);
+      tog.type = "button";
       const pass = el("div", "passages"); pass.hidden = true;
       for (const p of s.passages) { const q = el("blockquote"); q.appendChild(document.createTextNode(p.text)); q.appendChild(el("cite", "", [p.heading, p.page ? "p." + p.page : ""].filter(Boolean).join(", "))); pass.appendChild(q); }
-      tog.addEventListener("click", () => { pass.hidden = !pass.hidden; tog.textContent = (pass.hidden ? "Show" : "Hide") + ` the ${s.passages.length} passage${s.passages.length === 1 ? "" : "s"}`; });
+      tog.addEventListener("click", () => { pass.hidden = !pass.hidden; tog.textContent = pass.hidden ? `Show the ${s.passages.length} ${noun} ↓` : `Hide the ${noun} ↑`; });
       links.appendChild(tog);
-      if (s.pmid) { const a = el("a", "linkbtn", "PubMed"); a.href = "https://pubmed.ncbi.nlm.nih.gov/" + s.pmid + "/"; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
-      if (s.doi) { const a = el("a", "linkbtn", "DOI"); a.href = "https://doi.org/" + s.doi; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
+      if (s.pmid) { const a = el("a", "linkbtn", "PubMed ↗"); a.href = "https://pubmed.ncbi.nlm.nih.gov/" + s.pmid + "/"; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
+      if (s.doi) { const a = el("a", "linkbtn", "DOI ↗"); a.href = "https://doi.org/" + s.doi; a.target = "_blank"; a.rel = "noopener"; links.appendChild(a); }
       body.append(links, pass); row.appendChild(body); card.appendChild(row);
     }
     box.appendChild(card);
@@ -136,8 +169,8 @@
   function renderPassages(list) {
     const box = $("answer"); box.textContent = "";
     if (!list.length) { box.appendChild(el("div", "callout warn", "Nothing in the library matched.")); return; }
-    const card = el("div", "card srccard");
-    card.appendChild(el("div", "srchead", `Best matching passages (${list.length}) — no AI was used`));
+    const card = el("section", "srccard");
+    card.appendChild(el("h2", "srchead", `Best matching passages (${list.length}), no AI used`));
     for (const p of list) {
       const row = el("div", "src");
       const body = el("div", "srcbody");
@@ -156,7 +189,10 @@
     const a = el("a", "recent", r.question); a.href = "#"; a.dataset.id = r.id; a.addEventListener("click", open);
     const first = box.querySelector(".faint"); if (first) first.remove();
     box.prepend(a);
-    document.getElementById("spent").textContent = "$" + (parseFloat($("spent").textContent.replace("$", "")) + r.answer.cost).toFixed(2);
+    const spent = parseFloat($("spent").textContent.replace("$", "")) + r.answer.cost;
+    $("spent").textContent = "$" + spent.toFixed(2);
+    const cap = parseFloat(root.dataset.cap) || 0, bar = document.querySelector(".meterbar > div");
+    if (bar && cap) bar.style.width = Math.min(100, 100 * spent / cap) + "%";
   }
   async function open(e) {
     e.preventDefault();

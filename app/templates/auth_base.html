@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% block topbar %}<div class="topbar"><span class="brand">Research Portal Setup Kit</span><div class="right"></div></div>{% endblock %}
+{% block topbar %}{% endblock %}
 {% block body %}
-<div class="authwrap"><div class="card stack authcard">
-{% block auth %}{% endblock %}
-</div></div>
+<div class="authpage rise">
+  <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div class="eyebrow">Research publication bank</div>
+  {% block auth %}{% endblock %}
+</div>
 {% endblock %}

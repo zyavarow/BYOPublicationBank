@@ -378,7 +378,8 @@ def step2(request: Request, folder: str, q: str = "", status: str = "", p: int =
         oid = _org_id(conn, org)
         counts = bank.counts(conn, oid)
         items, total, pages, p = bank.page(conn, oid, q.strip(), status, p)
-    return _page(request, "step2.html", org=org, counts=counts, items=items, total=total, pages=pages, p=p, q=q, status=status,
+        idx = search_index.status(conn, oid)
+    return _page(request, "step2.html", org=org, idx=idx, counts=counts, items=items, total=total, pages=pages, p=p, q=q, status=status,
                  statuses=bank.STATUS_LABELS)
 
 
@@ -391,8 +392,8 @@ def add_pmids(folder: str, ids: str = Form("")):
     if not good:
         return JSONResponse({"error": "No PubMed IDs found. Paste numbers such as 38291045, one per line or separated by commas."},
                             status_code=400)
-    if len(good) > 3000:
-        return JSONResponse({"error": "That is more than 3,000 IDs at once; please add them in smaller batches."}, status_code=400)
+    if len(good) > 10000:
+        return JSONResponse({"error": "That is more than 10,000 IDs at once; please add them in smaller batches."}, status_code=400)
     with connect() as conn:
         oid = _org_id(conn, org)
     if sources.busy(oid):

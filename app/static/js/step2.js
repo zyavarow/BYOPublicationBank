@@ -13,13 +13,40 @@
 
   // PubMed ID list: count IDs as you type
   const countIds = (text) => {
-    const cleaned = text.replace(/\b(pmid|pubmed id|pubmed)\s*:?\s*/gi, "");
-    return new Set(cleaned.split(/[\s,;]+/).filter((x) => /^[1-9]\d{0,8}$/.test(x))).size;
+    return idList(text).length;
   };
+  // the IDs in a piece of text, each once, in order ("PMID- 123" and "PMID: 123" lines work too)
+  const idList = (text) => {
+    const cleaned = text.replace(/\b(pmid|pubmed id|pubmed)\s*[:\-]?\s*/gi, "");
+    return [...new Set(cleaned.split(/[\s,;]+/).filter((x) => /^[1-9]\d{0,8}$/.test(x)))];
+  };
+  const minutesFor = (n) => { const m = Math.max(1, Math.round((n * 1.5) / 60)); return m < 90 ? `${m} minute${m === 1 ? "" : "s"}` : `${(m / 60).toFixed(1)} hours`; };
   $("pmidText").addEventListener("input", () => {
     const n = countIds($("pmidText").value);
-    $("pmidCount").textContent = n + (n === 1 ? " ID detected" : " IDs detected");
-    $("pmidGo").disabled = n === 0;
+    $("pmidCount").textContent = n.toLocaleString() + (n === 1 ? " ID detected" : " IDs detected");
+    $("pmidGo").disabled = n === 0 || n > 10000;
+    $("pmidTime").textContent = n > 10000 ? "That is more than 10,000 IDs; please add them in smaller batches."
+      : n ? `Free, no AI used. Fetching and preparing ${n.toLocaleString()} papers takes about ${minutesFor(n)}; keep this window open.` : "";
+  });
+  // several ID files at once: read them here, merge into the box, remove repeats
+  $("pmidFiles").addEventListener("change", async (e) => {
+    const files = [...e.target.files];
+    if (!files.length) return;
+    const per = [];
+    const seen = new Set(idList($("pmidText").value));
+    const before = seen.size;
+    let repeats = 0;
+    for (const f of files) {
+      const ids = idList(await f.text());
+      let fresh = 0;
+      for (const id of ids) { if (seen.has(id)) repeats++; else { seen.add(id); fresh++; } }
+      per.push(`${f.name}: ${ids.length.toLocaleString()} ID${ids.length === 1 ? "" : "s"}`);
+    }
+    $("pmidText").value = [...seen].join("\n");
+    $("pmidText").dispatchEvent(new Event("input"));
+    $("pmidFileNote").textContent = `${files.length} file${files.length === 1 ? "" : "s"} read (${per.join("; ")}). ${seen.size.toLocaleString()} different IDs in total` +
+      (repeats ? `; ${repeats.toLocaleString()} repeated ID${repeats === 1 ? "" : "s"} removed` : "") + (before ? ", including what was already in the box" : "") + ".";
+    e.target.value = "";            // lets the same file be chosen again
   });
   $("pmidGo").addEventListener("click", async () => {
     const body = new URLSearchParams({ ids: $("pmidText").value });
@@ -84,9 +111,15 @@
     start(fetch(`/org/${folder}/bank/pdfs/folder-add`, { method: "POST", body: new URLSearchParams({ path: $("folderPath").value }) }), [$("folderGo")]);
   });
 
+  // "Prepare for search": only touches papers that have no passages or vectors yet
+  const bi = $("buildIdx");
+  if (bi) bi.addEventListener("click", () => {
+    start(fetch(`/org/${folder}/index/build`, { method: "POST" }), [bi], () => location.reload());
+  });
+
   // jobs
   const box = $("jobBox");
-  async function start(request, buttons) {
+  async function start(request, buttons, after) {
     buttons.forEach((b) => (b.disabled = true));
     box.hidden = false;
     $("jobResult").textContent = "";
@@ -97,7 +130,7 @@
       const r = await request;
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Something went wrong.");
-      poll(d.job, buttons);
+      poll(d.job, buttons, after);
     } catch (err) {
       fail(err.message, buttons);
     }
@@ -110,8 +143,8 @@
     $("jobFill").style.width = "0";
     buttons.forEach((b) => (b.disabled = false));
   }
-  function poll(job, buttons) {
-    watchJob(folder, job, { onFail: (m) => fail(m, buttons), onDone: (x) => done(x, buttons) });
+  function poll(job, buttons, after) {
+    watchJob(folder, job, { onFail: (m) => fail(m, buttons), onDone: (x) => (after ? after() : done(x, buttons)) });
   }
   function done(x, buttons) {
     let lines;
@@ -127,6 +160,7 @@
       if (x.unmatched) lines.push(`${x.unmatched} reference${x.unmatched === 1 ? " was" : "s were"} not found in PubMed and kept as plain citations.`);
       if (x.not_in_pubmed && x.not_in_pubmed.length) lines.push("Not added: " + x.not_in_pubmed.slice(0, 8).join("; ") + (x.not_in_pubmed.length > 8 ? "…" : ""));
     }
+    if (x.added) lines.push(x.indexed === false ? (x.index_error || "They are not searchable yet; use Prepare for search.") : "They are cut into passages and ready for search.");
     $("jobResult").textContent = lines.join(" ");
     const more = document.createElement("a");
     more.href = location.pathname; more.textContent = " Refresh the list →"; more.className = "reload";

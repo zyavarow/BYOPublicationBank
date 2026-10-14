@@ -74,7 +74,13 @@
       <div class="inputbox">
         <label class="lab" for="pmidText">Paste PubMed IDs, one per line or separated by commas</label>
         <textarea id="pmidText" rows="4" placeholder="38291045, 39012233, 37765521"></textarea>
+        <div class="logo-row mt-s">
+          <label class="btn line small upload" for="pmidFiles">Add ID files (.txt)
+            <input type="file" id="pmidFiles" accept=".txt,.csv,text/plain" multiple></label>
+          <span class="filenote" id="pmidFileNote">Choose one or several files with one PubMed ID per line. They are combined here, and repeats are removed.</span>
+        </div>
         <div class="actions"><span class="count" id="pmidCount">0 IDs detected</span><button type="button" class="btn small" id="pmidGo" disabled>Fetch &amp; add</button></div>
+        <div class="hint" id="pmidTime"></div>
       </div>
       <div class="proscons">
         <div><h3>Good for</h3><ul>
@@ -94,6 +100,15 @@
   </div>
 </div>
 
+{% if idx.pending_papers or (idx.chunks and idx.embedded < idx.chunks) %}
+<div class="callout warn notsearch" id="indexNotice" role="status">
+  <div class="ctitle">Not yet searchable</div>
+  {% if idx.pending_papers %}<strong>{{ idx.pending_papers }}</strong> paper{{ '' if idx.pending_papers == 1 else 's' }} in the bank {{ 'has' if idx.pending_papers == 1 else 'have' }} not been cut into passages, so questions cannot find {{ 'it' if idx.pending_papers == 1 else 'them' }} yet.{% endif %}
+  {% if idx.chunks and idx.embedded < idx.chunks %}{{ idx.chunks - idx.embedded }} passage{{ '' if idx.chunks - idx.embedded == 1 else 's' }} still need{{ 's' if idx.chunks - idx.embedded == 1 else '' }} their search vectors.{% endif %}
+  Imports do this automatically; press the button if one was interrupted.
+  <div class="mt-s"><button type="button" class="btn small" id="buildIdx">Prepare for search</button> <span class="filenote" id="idxNote"></span></div>
+</div>
+{% endif %}
 <section class="banklist">
   <div class="bankhead">
     <h2>In the bank</h2>

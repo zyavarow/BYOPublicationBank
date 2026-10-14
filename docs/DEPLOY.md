@@ -100,3 +100,14 @@ Without email, people ask an administrator for a reset link (People page). To le
 | `PUBBANK_BASE_URL` | Optional: the site's public address (for example `https://yourname.up.railway.app`), used inside emailed links. |
 
 Once `PUBBANK_SMTP_HOST` and `PUBBANK_MAIL_FROM` are set, the sign-in page shows "Email me a reset link". The reply is the same whether or not the address has an account, links work once and expire in 2 hours, and each address can request at most 3 per hour. If the settings are missing, the page keeps the old text.
+
+## Optional: PubMed settings (for importing papers by PubMed ID)
+
+Importing a list of PubMed IDs (or a reference-manager export) contacts NCBI's free public service. NCBI asks every user to identify themselves, so add these to the app service's variables:
+
+| Variable | What it is |
+|---|---|
+| `NCBI_EMAIL` | Any real contact address for the organization. Without it the app uses a placeholder and NCBI may slow requests down. |
+| `NCBI_API_KEY` | Optional and free (create it in your NCBI account settings). It makes large imports about three times faster. |
+
+After an import, the new papers are cut into passages and prepared for search automatically, in the same step, using the search model that is part of the app image. If that step is ever interrupted, the Publication Bank page and the workspace show a "Not yet searchable" notice with a "Prepare for search" button.

@@ -30,7 +30,10 @@ def status(conn, org_id):
     ensure_table(conn)
     papers = conn.execute("SELECT count(*) FROM papers WHERE org_id = %s AND in_bank AND parse_status = 'ok'", (org_id,)).fetchone()[0]
     r = conn.execute("SELECT count(DISTINCT paper_id), count(*), count(embedding) FROM chunks WHERE org_id = %s", (org_id,)).fetchone()
-    return {"papers": papers, "papers_indexed": r[0], "chunks": r[1], "embedded": r[2]}
+    # in-bank papers with real text but no passages yet (for example, added after the index was built); very short records cannot be indexed
+    pending = conn.execute("""SELECT count(*) FROM papers p WHERE p.org_id = %s AND p.in_bank AND p.parse_status = 'ok' AND coalesce(p.char_count, 0) >= 200
+                              AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.paper_id = p.id)""", (org_id,)).fetchone()[0]
+    return {"papers": papers, "papers_indexed": r[0], "chunks": r[1], "embedded": r[2], "pending_papers": pending}
 
 
 def embed_text(title, heading, text):

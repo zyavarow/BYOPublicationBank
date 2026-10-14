@@ -25,6 +25,9 @@
     {% elif idx.embedded < idx.chunks %}
     <div class="callout warn"><div class="ctitle">Meaning-based search is {{ (100 * idx.embedded / idx.chunks)|round|int }}% ready</div>{{ idx.embedded }} of {{ idx.chunks }} passages prepared. Until it finishes, answers rely more on exact words and may miss relevant papers.
       <span id="idxNote" class="filenote"></span></div>
+    {% elif idx.pending_papers %}
+    <div class="callout warn"><div class="ctitle">{{ idx.pending_papers }} recently added paper{{ '' if idx.pending_papers == 1 else 's' }} not searchable yet</div>Questions cannot find {{ 'it' if idx.pending_papers == 1 else 'them' }} until {{ 'it is' if idx.pending_papers == 1 else 'they are' }} prepared.
+      {% if can_admin(request.state.user, org.folder) %}<div class="mt-s"><button type="button" class="btn small" id="buildIdx">Prepare for search</button> <span class="filenote">Quick for a few papers; longer for many.</span></div>{% else %}<div class="filenote mt-s">An administrator can finish this.</div>{% endif %}</div>
     {% endif %}
     {% if not has_key %}<div class="callout warn">No Anthropic API key is set on this computer, so only “Passages only” search works.</div>{% endif %}
     <div class="jobbox" id="jobBox" hidden role="status"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>

@@ -27,6 +27,9 @@ DEPTHS = {
     "deep": dict(label="Deep", model=SONNET, passages=34, per_paper=3, rewrite=False, split=True),
 }
 ROLES = {
+    # the default now that the interface no longer offers a role: the wording (plain or technical) is chosen separately
+    "general": ("General", "The reader may be a patient, caregiver, clinician or researcher, so follow the wording rule below. Say plainly what the evidence does and does not show, "
+                "never give medical advice or recommend a treatment for any individual, and where it helps, suggest discussing specifics with a care team."),
     "patient": ("Patient / Caregiver", "The reader is a patient or family member. Use warm, plain words and short sentences; explain every medical term the first time; "
                 "avoid statistics unless they help; say what the evidence means for a person living with the condition; never give medical advice, and "
                 "suggest discussing specifics with the care team."),
@@ -197,7 +200,7 @@ def _system(role, fmt, disease):
 
 
 # ---------------------------------------------------------------------------------------------- the entry point
-def ask(conn, org_id, question, role="scientist", depth="standard", fmt="plain", disease="", synonyms=None, paper_ids=None, daily_cap=5.0, user_id=None):
+def ask(conn, org_id, question, role="general", depth="standard", fmt="plain", disease="", synonyms=None, paper_ids=None, daily_cap=5.0, user_id=None):
     """Returns a dict ready for the screen. Raises ValueError for problems the person can fix (too long, cap reached)."""
     question = question.strip()
     if not question or len(question) > 1200:

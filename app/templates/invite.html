@@ -15,6 +15,7 @@
 {% else %}
 <h1>Welcome{% if org_name %} to {{ org_name }}{% endif %}</h1>
 <p class="tagline">You have been invited as {{ 'an <strong>administrator</strong>'|safe if link.role == 'admin' else 'a <strong>member</strong>'|safe }}. Choose a password to create your account for {{ link.email }}.</p>
+{% if link.role != 'admin' %}<p class="after">Good to know: administrators of {{ org_name or 'this organization' }} can see the questions members ask.</p>{% endif %}
 {% endif %}
 {% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
 

@@ -1,63 +1,61 @@
 {% extends "base.html" %}
 {% from "_steps.html" import steps %}
-{% block title %}Setup — Clean up the bank{% endblock %}
+{% block title %}Setup 3 · Clean up the publication bank · BYO Publication Bank{% endblock %}
 {% block body %}
 {{ steps(org, 3) }}
+<div class="eyebrow link step-eyebrow">Step three · recommended</div>
+<h1>Clean up the publication bank</h1>
+<p class="lede">Duplicates, scans and non-papers are already set aside. Here you can check every paper is about your topic and overrule any decision. <em>Nothing is deleted</em>: an excluded paper can always come back. You can skip this and return later.</p>
 
-<h1>Clean up the bank</h1>
-<p class="lede">Recommended. The system has already set aside duplicates, scans and non-papers. Here you can check that every paper is about your topic, review its suggestions, and overrule any decision. Nothing is deleted: a paper you exclude can always be brought back. You can skip this step and come back later.</p>
-
-<div class="cols" id="reviewTop" data-folder="{{ org.folder }}">
-  <div class="card main-col stack">
+<section id="reviewTop" data-folder="{{ org.folder }}">
+  <div class="bankhead">
     <h2>Are the papers about your topic?</h2>
-    <div class="inputbox">
-      <div class="lab">Quick check by words — free</div>
-      <p class="plain">A paper passes if it names the disease (any term below) in its title or abstract, or at least three times in the text. Edit the terms, preview what would be flagged, then apply.</p>
-      <textarea id="terms" rows="2">{{ terms }}</textarea>
-      <div class="hint">Separate terms with semicolons. Include related terms you also want to keep (for example a related enzyme or pathway), or those papers will be flagged.</div>
+    <span class="summary" id="bankSummary"><strong>{{ bank.inbank + bank.abstract }}</strong> in the bank · <strong>{{ counts.decided }}</strong> decided by you</span>
+  </div>
+  <div class="two">
+    <div class="two-a">
+      <div class="twohead"><h3>Quick check by words</h3><span class="mono free">Free</span></div>
+      <p class="secnote">A paper passes if it names the disease (any term below) in its title or abstract, or at least three times in the text. Edit the terms, preview what would be flagged, then apply.</p>
+      <label for="terms" class="lab">Terms, separated by semicolons</label>
+      <textarea id="terms" rows="2" class="monoarea">{{ terms }}</textarea>
+      <div class="hint">Include related terms you also want to keep (for example a related enzyme or pathway), or those papers will be flagged.</div>
       <div class="actions"><span class="count" id="kwInfo"></span>
-        <span><button type="button" class="btn small line" id="kwPreview">Preview</button> <button type="button" class="btn small" id="kwApply">Apply</button></span></div>
+        <span class="btnpair"><button type="button" class="btn small line" id="kwPreview">Preview</button> <button type="button" class="btn small" id="kwApply">Apply</button></span></div>
       <div class="kwlist" id="kwList"></div>
     </div>
-    <div class="inputbox">
-      <div class="lab">Smarter check by AI — costs money</div>
-      <p class="plain">Claude reads each paper's title and abstract against your description of the disease. It also catches look-alikes that share a name with the disease, which the word check cannot. It marks papers on topic, worth a look, or off topic, with a one-line reason.</p>
-      <div class="costline"><strong>{{ estimate.papers }} papers · about {{ money(estimate.expected) }}</strong>
-        <span>(at most {{ money(estimate.high) }}; the run stops if it reaches that)</span></div>
-      <label class="check"><input type="checkbox" id="aiConfirm"> I understand this will cost about {{ money(estimate.expected) }}, and no more than {{ money(estimate.high) }}.</label>
+    <div class="two-b">
+      <div class="twohead"><h3>Smarter check by AI</h3><span class="mono cost">≈ {{ money(estimate.expected) }}</span></div>
+      <p class="secnote">Claude reads each paper's title and abstract against your description of the disease and catches look-alikes that share its name. Each paper is marked on topic, worth a look, or off topic, with a one-line reason.</p>
+      <div class="pricebox">
+        <div class="mono">{{ estimate.papers }} papers · about {{ money(estimate.expected) }} · stops at {{ money(estimate.high) }}</div>
+        <label class="check"><input type="checkbox" id="aiConfirm"> I understand this will cost about {{ money(estimate.expected) }}, and no more than {{ money(estimate.high) }}.</label>
+      </div>
       <div class="actions"><span class="count">{% if not has_key %}No Anthropic API key is set on this computer.{% endif %}</span>
         <button type="button" class="btn small" id="aiGo" disabled {{ '' if has_key and estimate.papers else 'data-nokey=1' }}>Run AI check</button></div>
     </div>
-    <div class="jobbox" id="jobBox" hidden>
-      <div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
-      <div class="bar"><div class="fill" id="jobFill"></div></div>
-      <div class="jobresult" id="jobResult"></div>
-    </div>
   </div>
-  <div class="card side-col stack">
-    <h2>Prefer a spreadsheet?</h2>
-    <p class="plain">Download everything that was set aside, with the reason for each. Type Keep or Exclude in the last column, then upload the file again. Useful for sharing with the organization.</p>
-    <a class="btn small" style="display:inline-flex;align-items:center;justify-self:start" href="/org/{{ org.folder }}/bank/set-aside.xlsx">Download spreadsheet</a>
-    <div class="logo-row">
-      <label class="btn small upload line" for="decFile">Upload reviewed spreadsheet<input type="file" id="decFile" accept=".xlsx"></label>
-      <span class="filenote" id="decNote"></span>
-    </div>
-    <div class="summary" id="bankSummary"><strong>{{ bank.inbank + bank.abstract }}</strong> papers in the bank now · {{ counts.decided }} decided by you</div>
+  <div class="jobbox" id="jobBox" hidden role="status">
+    <div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
+    <div class="bar"><div class="fill" id="jobFill"></div></div>
+    <div class="jobresult" id="jobResult"></div>
   </div>
-</div>
+  <p class="sheetline"><strong>Prefer a spreadsheet?</strong> Download everything set aside with its reason, mark Keep or Exclude in the last column, and upload it again. Useful for sharing with the organization.
+    <a class="mono lnk" href="/org/{{ org.folder }}/bank/set-aside.xlsx">Download ↓</a>
+    <label class="mono lnk upload2" for="decFile">Upload reviewed ↑<input type="file" id="decFile" accept=".xlsx"></label>
+    <span class="filenote" id="decNote"></span></p>
+</section>
 
-<div class="card listcard" style="margin-top:24px">
-  <div>
-    <h2 style="margin:0 0 4px">Which of the flagged papers should stay in the bank?</h2>
-    <p class="plain" style="margin:0">The system flagged these papers while preparing the bank: look-alikes, possible duplicates, papers that are not research, and possible off-topic papers. By default, look-alikes, papers that are not research and possible off-topic papers are <strong>set aside</strong> (left out of the bank), while possible duplicates and "worth a look" papers <strong>stay in</strong> until you exclude them. Choose a tab, then use the button on a paper to overrule the default: <strong>Keep in bank</strong> for set-aside papers, <strong>Exclude</strong> for the others. Undo puts it back to the default. Your choice is saved straight away, and nothing is ever deleted.</p>
-  </div>
-  <div id="reviewList">
+<section class="flagged">
+  <h2>Which flagged papers should stay in the bank?</h2>
+  <p class="secnote wide">The system flagged these papers while preparing the bank. Each list has a default: look-alikes, papers that are not research and possible off-topic papers are <strong>set aside</strong>; possible duplicates and “worth a look” papers <strong>stay in</strong> until you exclude them. Use the button on a paper to overrule its default; <em>Undo</em> puts it back. Your choice is saved straight away.</p>
+  <div id="reviewList" class="listcard">
 {% include "_review_list.html" %}
   </div>
-</div>
+</section>
+
 <div class="footer">
-  <a class="btn ghost" href="/org/{{ org.folder }}/step/2">← Back</a>
-  <a class="btn" href="/org/{{ org.folder }}/step/4">Continue — Extraction Schema →</a>
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/2">← Publication bank</a>
+  <span class="footright"><a class="skip" href="/org/{{ org.folder }}/step/4">Skip for now</a><a class="btn" href="/org/{{ org.folder }}/step/4">Save &amp; continue: Extraction schema →</a></span>
 </div>
 <script src="{{ static_v('js/review.js') }}"></script>
 {% endblock %}

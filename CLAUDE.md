@@ -40,7 +40,7 @@ Pilot with one organization: a library of 537 PDFs (all obtained via university 
 - default to plain language (a technical format is also available), always fully cited at the passage level;
 - show a confidence indicator (based on number of independent supporting papers, evidence type, and agreement);
 - include a "Not covered by this library" callout when retrieval is weak or a part of the question isn't addressed;
-- respect an "Answering as" role: Patient/Caregiver, Clinician, Scientist/Researcher, Advocacy Leader (draft roles).
+- not offer an "Answering as" role in the interface (removed Oct 2026, user decision: too many options). The four draft roles (Patient/Caregiver, Clinician, Scientist/Researcher, Advocacy Leader) remain in `pubbank/ask.py` but are unused; the default is a neutral "general" role, and wording is chosen with the plain/technical switch.
 
 **Search depth (user-selectable, with estimated cost shown):**
 - Quick — one hybrid search, ~8 chunks, fast model (`claude-haiku-4-5-20251001`).

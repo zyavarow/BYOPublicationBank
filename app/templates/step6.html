@@ -1,89 +1,91 @@
 {% extends "base.html" %}
 {% from "_steps.html" import steps %}
-{% block title %}Setup — Review &amp; Launch{% endblock %}
+{% block title %}Setup 6 · Review &amp; launch · BYO Publication Bank{% endblock %}
 {% block body %}
 {{ steps(org, 6) }}
 <div id="launchRoot" data-folder="{{ org.folder }}">
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap"><h1>Review before you launch</h1>
-  <a class="btn line" href="/org/{{ org.folder }}/workspace">Open the workspace →</a></div>
+<div class="eyebrow link step-eyebrow">Step six</div>
+<div class="titlerow"><h1>Review before you launch</h1>
+  <a class="mono lnk" href="/org/{{ org.folder }}/workspace">Open the workspace →</a></div>
 <p class="lede">Everything below can be changed later. Check the summary, choose how answers should look by default, and see what reading the whole library will cost.</p>
 <div class="flash err" id="launchErr" hidden></div>
 
-<div class="card stack" style="max-width:900px">
-  <div class="logo-row"><div class="avatar" style="background:{{ org.primary }}">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</div>
-    <div><h2 style="margin:0">{{ org.name }}</h2><div class="hint" style="margin:0">{{ org.description }}</div></div></div>
+<section class="sec stack">
+  <div class="logo-row"><div class="avatar">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</div>
+    <div><h2 class="nomargin">{{ org.name }}</h2><div class="hint nomargin">{{ org.description }}</div></div></div>
   <div class="sumgrid">
     <div class="sumbox"><div class="lab">Publication bank</div>
       <div class="big2">{{ bank.inbank + bank.abstract }} <small>papers in the bank</small></div>
-      <div class="hint">{{ bank.total }} received{% if bank.abstract %} · {{ bank.abstract }} abstract only{% endif %} · {{ bank.total - bank.inbank - bank.abstract }} set aside.
+      <div class="hint">{{ '{:,}'.format(idx.chunks) }} searchable passages ({{ (100 * idx.embedded / idx.chunks)|round|int if idx.chunks else 0 }}% prepared for meaning search).<br>{{ bank.total }} received{% if bank.abstract %} · {{ bank.abstract }} abstract only{% endif %} · {{ bank.total - bank.inbank - bank.abstract }} set aside.
         <a class="lnk" href="/org/{{ org.folder }}/step/2">Change</a></div></div>
     <div class="sumbox"><div class="lab">Extraction schema</div>
       {% if view %}<div class="big2">{{ fields.standard + fields.customized + fields.custom }} <small>fields</small></div>
-      <div class="hint">{{ fields.standard }} standard · {{ fields.customized }} customized · {{ fields.custom }} added. {% if approved %}Approved.{% else %}<strong style="color:var(--accent)">Not approved yet.</strong>{% endif %}
+      <div class="hint">{{ extracted }} of {{ bank.inbank + bank.abstract }} papers read in detail so far.</div>
+      <div class="hint">{{ fields.standard }} standard · {{ fields.customized }} customized · {{ fields.custom }} added. {% if approved %}Approved.{% else %}<strong class="warn-text">Not approved yet.</strong>{% endif %}
         <a class="lnk" href="/org/{{ org.folder }}/step/4">Change</a></div>
       {% else %}<div class="hint">No schema yet. <a class="lnk" href="/org/{{ org.folder }}/step/4">Set it up</a></div>{% endif %}</div>
     <div class="sumbox"><div class="lab">Sample check</div>
       {% if score and score.overall.reviewed %}<div class="big2">{{ score.overall.pct }}% <small>correct</small></div><div class="hint">{{ score.overall.reviewed }} answers marked. <a class="lnk" href="/org/{{ org.folder }}/step/5">Open</a></div>
       {% else %}<div class="hint">Not done. A 15-paper check is recommended before reading everything. <a class="lnk" href="/org/{{ org.folder }}/step/5">Check a sample</a></div>{% endif %}</div>
   </div>
-</div>
+</section>
 
-<div class="card stack" style="max-width:900px;margin-top:20px" id="keyCard">
+<section class="sec stack" id="keyCard">
   <h2>Anthropic API key</h2>
-  <p class="plain" style="margin:0">Every question, topic check and library read is billed to an Anthropic account. Enter this organization's own key so that it pays for its own use. The key is stored on the server only: this page never shows it again, and it is never sent to the browser or to anyone but Anthropic.</p>
+  <p class="plain nomargin">Every question, topic check and library read is billed to an Anthropic account. Enter this organization's own key so that it pays for its own use. The key is stored on the server only: this page never shows it again, and it is never sent to the browser or to anyone but Anthropic.</p>
   <div class="inputbox" id="keyState"></div>
-  <div class="web-row" style="align-items:center"><input type="password" id="keyIn" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" style="max-width:420px">
+  <div class="web-row center"><input type="password" id="keyIn" class="w420" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
     <button type="button" class="btn small" id="keySave">Save and test</button></div>
   <div class="hint">Create a key in the Anthropic Console (console.anthropic.com → API keys). Set a monthly spending limit there too: it is your safety net, and this app's own limits are in addition to it. Testing a key is free.</div>
-  <div class="web-row" style="align-items:center;gap:10px"><button type="button" class="btn small line" id="keyTest">Test the key in use</button>
+  <div class="web-row center"><button type="button" class="btn small line" id="keyTest">Test the key in use</button>
     <button type="button" class="btn small line" id="keyRemove" hidden>Remove this organization's key</button><span class="filenote" id="keyNote"></span></div>
-</div>
+</section>
 
-<div class="card stack" style="max-width:900px;margin-top:20px">
+<section class="sec stack">
   <h2>Default answer format</h2>
-  <p class="plain" style="margin:0">Members can switch anytime; this sets what they see first. Both cite every claim.</p>
+  <p class="plain nomargin">Members can switch anytime; this sets what they see first. Both cite every claim.</p>
   <div class="row">
     <label class="optcard"><input type="radio" name="fmt" value="plain" {{ 'checked' if org.answer_format != 'technical' }}><div><strong>Plain-language summary</strong><div class="pdesc">Written for patients and caregivers: minimal jargon, every claim still cited.</div></div></label>
     <label class="optcard"><input type="radio" name="fmt" value="technical" {{ 'checked' if org.answer_format == 'technical' }}><div><strong>Technical summary</strong><div class="pdesc">More terminology, still fully cited, for clinical and scientific staff.</div></div></label>
   </div>
-  <h2 style="margin-top:8px">Search depth</h2>
-  <p class="plain" style="margin:0">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later.</p>
+  <h2 class="mt-s">Search depth</h2>
+  <p class="plain nomargin">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later.</p>
   <div class="row">
     {% for d in depths %}<label class="optcard"><input type="radio" name="depth" value="{{ d.key }}" {{ 'checked' if org.search_depth == d.key }}><div><strong>{{ d.label }}</strong> <span class="chip">≈ ${{ '%.2f'|format(d.cost) }} per search</span><div class="pdesc">{{ d.text }}</div></div></label>{% endfor %}
   </div>
   <label class="check"><input type="checkbox" id="allowDepth" {{ 'checked' if org.allow_depth_choice != 'no' }}> Let people choose the depth for each question (otherwise everyone gets the default above)</label>
-  <div class="web-row" style="align-items:center"><label class="lab" for="dailyCap" style="margin:0">Spending limit for questions, per day: $</label>
-    <input type="number" id="dailyCap" min="0.5" max="500" step="0.5" value="{{ org.daily_cap }}" style="max-width:100px"></div>
+  <div class="web-row center"><label class="lab nomargin" for="dailyCap">Spending limit for questions, per day: $</label>
+    <input type="number" id="dailyCap" class="w100" min="0.5" max="500" step="0.5" value="{{ org.daily_cap }}"></div>
   <div class="hint">When the day's questions reach this amount, new questions wait until tomorrow. This protects the organization's Anthropic account.</div>
   <div class="filenote" id="defNote"></div>
-</div>
+</section>
 
-<div class="card stack" style="max-width:900px;margin-top:20px" id="runCard">
+<section class="sec stack" id="runCard">
   <h2>Read the whole library</h2>
-  <p class="plain" style="margin:0">Every paper in the bank is read once with the schema above, using Anthropic's half-price Batch service. Nothing is read or charged until you press Start.</p>
+  <p class="plain nomargin">Every paper in the bank is read once with the schema above, using Anthropic's half-price Batch service. Nothing is read or charged until you press Start.</p>
   <div id="runIdle">
     <div><button type="button" class="btn small line" id="priceBtn" {{ 'disabled' if not view }}>Work out the price</button> <span class="filenote" id="priceNote"></span></div>
-    <div class="inputbox" id="priceBox" hidden style="margin-top:12px">
+    <div class="inputbox mt-m" id="priceBox" hidden>
       <table class="stbl" id="priceTbl"></table>
       <div class="hint" id="priceHint"></div>
-      <div class="web-row" style="margin-top:12px;align-items:center"><label class="lab" for="limit" style="margin:0">Spending limit $</label>
-        <input type="number" id="limit" min="1" step="1" style="max-width:110px"></div>
+      <div class="web-row center mt-m"><label class="lab nomargin" for="limit">Spending limit $</label>
+        <input type="number" id="limit" class="w100" min="1" step="1"></div>
       <div class="hint">The run stops and submits nothing more if the cost so far reaches this. Your Anthropic workspace may have its own, lower monthly limit: check it first.</div>
-      <label class="check" style="margin-top:10px"><input type="checkbox" id="runConfirm"> I understand this will cost about <span id="confExp"></span>, and I want to read all <span id="confN"></span> papers.</label>
-      <div class="actions" style="display:flex;justify-content:flex-end;margin-top:8px"><button type="button" class="btn" id="startBtn" disabled>Start reading the library</button></div>
+      <label class="check mt-s"><input type="checkbox" id="runConfirm"> I understand this will cost about <span id="confExp"></span>, and I want to read all <span id="confN"></span> papers.</label>
+      <div class="actions end mt-s"><button type="button" class="btn" id="startBtn" disabled>Start reading the library</button></div>
     </div>
   </div>
   <div id="runLive" hidden class="inputbox">
     <div class="jobhead"><strong id="runMsg">Starting…</strong><span id="runMeta"></span></div>
-    <div class="bar indet" id="runBar"><div class="fill" id="runFill" style="width:0"></div></div>
+    <div class="bar indet" id="runBar"><div class="fill" id="runFill"></div></div>
     <div class="hint" id="runHint">Anthropic runs the batch; each round usually finishes within an hour (it can take up to a day). You can close this window: the app picks the run up again when you reopen it.</div>
-    <div class="actions" style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="filenote" id="runDone"></span><button type="button" class="btn small line" id="cancelBtn">Cancel the run</button></div>
+    <div class="actions spread mt-s"><span class="filenote" id="runDone"></span><button type="button" class="btn small line" id="cancelBtn">Cancel the run</button></div>
   </div>
-</div>
+</section>
 </div>
 
 <div class="footer">
-  <a class="btn ghost" href="/org/{{ org.folder }}/step/5">← Back</a>
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/5">← Check a sample</a>
   <span></span>
 </div>
 <script>
@@ -95,7 +97,7 @@
   const drawKey = () => {
     $("keyState").innerHTML = keyInfo.source === "own" ? "<strong>Using this organization's own key</strong> ending in <code>" + keyInfo.last4 + "</code>."
       : keyInfo.source === "default" ? "<strong>Using the shared default key</strong> for this installation. Enter the organization's own key below to replace it for this organization."
-      : "<strong style='color:var(--accent)'>No key is set.</strong> Questions and reading the library will not work until one is entered.";
+      : "<strong class='warn-text'>No key is set.</strong> Questions and reading the library will not work until one is entered.";
     $("keyRemove").hidden = keyInfo.source !== "own";
     $("keyIn").value = "";
   };

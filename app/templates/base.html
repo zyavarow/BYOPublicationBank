@@ -12,7 +12,7 @@
 {% block topbar %}<header class="topbar">
   <a class="brand" href="/">BYO Publication Bank{% if org is defined and org.name %} <span class="sub">setup for {{ org.name }}</span>{% endif %}</a>
   <nav class="right" aria-label="Account">
-    <a class="exit" href="/">Save &amp; exit</a>
+    {% if org is defined %}<a class="exit" href="/org/{{ org.folder }}/workspace">Save &amp; exit</a>{% else %}<a class="exit" href="/">Home</a>{% endif %}
     {% if org is defined and can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/admin">Admin</a><a class="exit" href="/org/{{ org.folder }}/people">People</a>{% endif %}
     {% include "_usernav.html" %}
   </nav>

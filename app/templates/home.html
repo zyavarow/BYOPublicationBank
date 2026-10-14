@@ -1,45 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Organizations · Research Portal Setup Kit{% endblock %}
+{% block title %}Organizations · BYO Publication Bank{% endblock %}
 {% block body %}
+<div class="eyebrow link step-eyebrow">This installation</div>
 <h1>Organizations</h1>
-<p class="lede">Each organization has its own publication bank, extraction template and portal. Pick one to continue its setup, or start a new one.</p>
+<p class="lede">Each organization has its own publication bank, extraction schema and workspace. Pick one to continue its setup{% if request.state.user.is_super %}, or start a new one{% endif %}.</p>
 <div class="org-grid">
   {% for o in orgs %}
-  <div class="card org-card">
+  <div class="card org-card" style="{{ brand_vars(o) }}">
     <div class="head">
-      <div class="avatar" style="background:{{ o.primary }}">{% if o.logo %}<img src="/org/{{ o.folder }}/logo?v={{ o.logo }}" alt="">{% else %}{{ o.initials }}{% endif %}</div>
+      <div class="avatar">{% if o.logo %}<img src="/org/{{ o.folder }}/logo?v={{ o.logo }}" alt="">{% else %}{{ o.initials }}{% endif %}</div>
       <div><div class="nm">{{ o.name }}</div>
         <span class="status {{ '' if o.in_bank else 'warn' }}">{{ 'Bank loaded' if o.in_bank else 'No papers yet' }}</span></div>
     </div>
     <div class="meta">{% if o.received %}{{ o.received }} papers received · {{ o.in_bank }} in the bank{% else %}No publications added yet{% endif %}<br>
       {{ o.description or 'No description yet' }}</div>
     <div class="acts">
-      {% if o.role == 'admin' %}<a class="btn small" href="/org/{{ o.folder }}/step/1" style="display:inline-flex;align-items:center">Open setup →</a>{% endif %}
-      <a class="btn small line" href="/org/{{ o.folder }}/workspace" style="display:inline-flex;align-items:center">Workspace</a>
+      {% if o.role == 'admin' %}<a class="btn small" href="/org/{{ o.folder }}/step/1">Open setup →</a>{% endif %}
+      <a class="btn small line" href="/org/{{ o.folder }}/workspace">Workspace</a>
     </div>
   </div>
   {% endfor %}
 </div>
 {% if request.state.user.is_super %}
-<h2>New organization</h2>
-<form method="post" action="/orgs/new" class="newrow">
-  <input type="text" name="name" placeholder="Organization name" maxlength="120" required>
-  <button class="btn small" type="submit">Create</button>
-</form>
-<div class="card" style="margin-top:28px;max-width:760px">
-  <h2 style="margin-bottom:4px">Back end</h2>
-  <p class="plain" style="margin:0 0 10px">An Excel workbook of the standard categories, plus what each organization has customized: options added or removed, reworded instructions, custom categories, removed categories and gene lists.</p>
-  <a class="btn small line" href="/admin/schema-registry.xlsx" style="display:inline-flex;align-items:center">Download the schema registry (Excel)</a>
-</div>
-<div class="card" style="margin-top:20px;max-width:760px">
-  <h2 style="margin-bottom:4px">Move an organization</h2>
-  <p class="plain" style="margin:0 0 10px">Settings only (name, colors, logo, template, proposal): never the key, the papers or the database. Use it to copy an organization to a hosted installation, or to hand it over.</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">{% for o in orgs %}<a class="btn small line" href="/admin/org-bundle/{{ o.folder }}.zip" style="display:inline-flex;align-items:center">Download {{ o.name }} settings</a>{% endfor %}</div>
-  <form method="post" action="/admin/org-bundle" enctype="multipart/form-data" class="web-row" style="align-items:center">
-    <input type="text" name="folder" placeholder="folder name, e.g. dada2" pattern="[a-z0-9][a-z0-9-]*" maxlength="40" required style="max-width:200px">
-    <input type="file" name="file" accept=".zip" required>
-    <button class="btn small" type="submit">Import settings</button>
+<section class="sec">
+  <h2>New organization</h2>
+  <form method="post" action="/orgs/new" class="newrow">
+    <input type="text" name="name" placeholder="Organization name" maxlength="120" required aria-label="Organization name">
+    <button class="btn small" type="submit">Create</button>
   </form>
-</div>
+</section>
+<section class="sec">
+  <h2>Back end</h2>
+  <p class="secnote">An Excel workbook of the standard categories, plus what each organization has customized: options added or removed, reworded instructions, custom categories, removed categories and gene lists.</p>
+  <a class="btn small line" href="/admin/schema-registry.xlsx">Download the schema registry (Excel) ↓</a>
+</section>
+<section class="sec last">
+  <h2>Move an organization</h2>
+  <p class="secnote">Settings only (name, colors, logo, schema, proposal): never the key, the papers or the database. Use it to copy an organization to a hosted installation, or to hand it over.</p>
+  <div class="btnrow">{% for o in orgs %}<a class="btn small line" href="/admin/org-bundle/{{ o.folder }}.zip">Download {{ o.name }} settings ↓</a>{% endfor %}</div>
+  <form method="post" action="/admin/org-bundle" enctype="multipart/form-data" class="web-row center">
+    <input type="text" name="folder" class="w200" placeholder="folder name, e.g. dada2" pattern="[a-z0-9][a-z0-9-]*" maxlength="40" required aria-label="Folder name">
+    <input type="file" name="file" accept=".zip" required aria-label="Settings file">
+    <button class="btn small" type="submit">Import settings ↑</button>
+  </form>
+</section>
 {% endif %}
 {% endblock %}

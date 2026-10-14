@@ -277,8 +277,74 @@ def _finish(ans, passages, extracted):
     final = ans["confidence"] if rank[ans["confidence"]] <= rank[cap] else cap
     if not k:
         final = "Low"
-    ans["confidence"] = final
+    score = evidence_score(ans, sources, k, abstract_only, final, cap)
+    ans["confidence"] = score["level"]
+    ans["confidence_score"] = score["percent"]
+    ans["confidence_parts"] = score["parts"]
+    ans["confidence_held"] = score["held"]
     ans["confidence_basis"] = (f"{k} paper{'' if k == 1 else 's'} cited" + (f", {abstract_only} abstract-only" if abstract_only else "")
                                + ("; sources disagree in places" if ans["disagreements"] else "") + ".")
     ans["papers_cited"] = k
     return ans, sources
+
+
+# ---------------------------------------------------------------------------------------------- the evidence score
+# 100 points: support 50 (how many different papers) + agreement 30 + quality of the evidence 20 (full text 10, study design 10).
+# It is a score of how well the library supports the answer, NOT the chance that the answer is right. The caps above stay in force:
+# one paper can never pass Low, two never pass Medium, and the AI's own rating can only lower the result.
+SUPPORT_POINTS = {0: 0, 1: 12, 2: 28, 3: 38, 4: 45}          # 5 or more papers: 50
+LEVEL_TOP = {"Low": 35, "Medium": 65, "High": 95}             # highest shown percent for each level (steps of 5)
+DESIGN_POINTS = [("trial", 10), ("treatment study", 10), ("cohort", 9), ("registry", 9), ("case report", 6), ("guideline", 7), ("consensus", 7),
+                 ("review", 6), ("animal", 4), ("in vitro", 4), ("computational", 3)]
+
+
+def _design_points(extracted):
+    """Points (0-10) for the study design of one paper, or None when its study type has not been read yet."""
+    for line in extracted or []:
+        if line.lower().startswith("study:"):
+            label = line[6:].lower()
+            for key, pts in DESIGN_POINTS:
+                if key in label:
+                    return pts
+            return 3
+    return None
+
+
+def level_for(percent):
+    return "High" if percent >= 70 else "Medium" if percent >= 40 else "Low"
+
+
+def evidence_score(ans, sources, k, abstract_only, level_cap, rule_cap):
+    """The percent, its level (High 70+, Medium 40-69, Low below 40), the points behind it, and why it was held back, if it was."""
+    n_dis = len(ans.get("disagreements") or [])
+    support = 50 if k >= 5 else SUPPORT_POINTS.get(k, 0)
+    agreement = max(0, 30 - 10 * n_dis) if k else 0
+    full_pts = round(10 * (k - abstract_only) / k, 1) if k else 0
+    designs = [_design_points(s.get("extracted")) for s in sources]
+    known = [d for d in designs if d is not None]
+    design_pts = round(sum(d if d is not None else 5 for d in designs) / k, 1) if k else 0
+    raw = support + agreement + full_pts + design_pts
+    top = LEVEL_TOP[level_cap]
+    percent = 0 if not k else max(5, min(5 * round(raw / 5), top))
+    held = []
+    if k and 5 * round(raw / 5) > top:
+        if k < 3:
+            held.append(f"only {k} paper{'' if k == 1 else 's'} cited")
+        if n_dis and k >= 3:
+            held.append("the sources disagree")
+        if k and abstract_only == k:
+            held.append("every paper is abstract-only")
+        if rank_of(level_cap) < rank_of(rule_cap):
+            held.append("the AI judged that the passages only partly fit the question" + (f" ({ans['confidence_reason']})" if ans.get("confidence_reason") else ""))
+    note_design = (f"study design known for {len(known)} of {k} papers" if len(known) < k else "study design known for all papers") if k else ""
+    parts = [
+        {"name": "Support", "points": support, "max": 50, "note": f"{k} different paper{'' if k == 1 else 's'} cited"},
+        {"name": "Agreement", "points": agreement, "max": 30, "note": "the papers do not conflict" if not n_dis else f"{n_dis} point{'' if n_dis == 1 else 's'} where the sources differ"},
+        {"name": "Quality of evidence", "points": round(full_pts + design_pts), "max": 20,
+         "note": f"{k - abstract_only} of {k} full text; {note_design}" if k else ""},
+    ]
+    return {"percent": percent, "level": level_for(percent), "parts": parts, "held": held}
+
+
+def rank_of(level):
+    return {"Low": 0, "Medium": 1, "High": 2}[level]

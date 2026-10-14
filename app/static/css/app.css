@@ -544,3 +544,8 @@ select.auto { width: auto; } .periodpick { min-width: 150px; }
   .wsside { order: -1; border-top: 0; padding-top: 0; }
   .emptybox h1 { font-size: 32px; }
 }
+
+/* evidence score explainer */
+details.how { margin: -6px 0 4px; font-size: 16px; color: var(--label); } details.how > summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--link); padding: 4px 0; }
+details.how ul { margin: 8px 0 6px; padding-left: 18px; } details.how li { margin-bottom: 3px; }
+details.how .held { margin: 6px 0; padding: 8px 12px; background: var(--warn-bg); color: var(--warn); } details.how .fine { margin: 8px 0 0; font-size: 14.5px; font-style: italic; color: var(--faint); }

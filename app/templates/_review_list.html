@@ -1,15 +1,15 @@
-  <div class="tabs-pills">
+  <div class="tabs-pills" role="tablist">
     {% for key, (label, _c, _h) in groups.items() %}{% if counts[key] or key == g %}
-    <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
+    <a class="tab {{ 'on' if key == g else '' }}" href="?g={{ key }}" role="tab">{{ label }} <span class="n">{{ counts[key] }}</span></a>{% endif %}{% endfor %}
   </div>
-  <div class="listtitle"><h3>{{ headings[g][0] }}</h3><p class="plain" style="margin:2px 0 0">{{ groups[g][2] }}</p>
-    <p class="hint" style="margin:6px 0 0"><strong>{{ headings[g][1] }}</strong></p></div>
-  <div class="items" style="max-height:none">
+  <div class="listtitle"><h3>{{ headings[g][0] }}</h3><p class="plain">{{ groups[g][2] }}</p>
+    <p class="hint"><strong>{{ headings[g][1] }}</strong></p></div>
+  <div class="items flat">
     {% for it in items %}
     <div class="item" data-id="{{ it.id }}" data-decision="{{ it.decision }}">
-      <div class="main"><div class="ttl" style="white-space:normal">{{ it.title }}</div>
-        <div class="sub" style="white-space:normal">{{ it.meta }}{% if it.meta %} · {% endif %}<span class="src">{{ it.source }}</span>
-          {% if it.why %} · {{ it.why }}{% if it.method == 'ai' %} (AI check){% endif %}{% endif %}
+      <div class="main"><div class="ttl wrap">{{ it.title }}</div>
+        <div class="sub wrap">{{ it.meta }}{% if it.meta %} · {% endif %}<span class="src">{{ it.source }}</span>
+          {% if it.why %} · <span class="why2">{{ it.why }}{% if it.method == 'ai' %} (AI check){% endif %}</span>{% endif %}
           {% if it.other %}<br>Looks like: <em>{{ it.other }}</em>{% endif %}</div></div>
       <div class="badge {{ 'ok' if it.in_bank else 'gray' }}" data-role="state">{{ 'In bank' if it.in_bank else 'Set aside' }}</div>
       <div class="decide" data-default="{{ 'in' if it.default_in else 'out' }}" data-keep="{{ 1 if it.can_keep else 0 }}">
@@ -27,7 +27,7 @@
   {% if pages > 1 %}
   <div class="pager">
     {% if p > 1 %}<a href="?g={{ g }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
-    <span>Page {{ p }} of {{ pages }} · {{ total }} papers</span>
-    {% if p < pages %}<a href="?g={{ g }}&p={{ p + 1 }}">Next →</a>{% else %}<span></span>{% endif %}
+    <span class="mono">Page {{ p }} of {{ pages }} · {{ total }} papers</span>
+    {% if p < pages %}<a href="?g={{ g }}&p={{ p + 1 }}">Next page →</a>{% else %}<span></span>{% endif %}
   </div>
   {% endif %}

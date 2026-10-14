@@ -1,48 +1,24 @@
 {% extends "base.html" %}
+{% from "_orgbar.html" import orgbar with context %}
 {% set npapers = bank.inbank + bank.abstract %}
-{% block title %}Ask the library · {{ org.name }}{% endblock %}
+{% block title %}Ask the library · {{ org.name }} · BYO Publication Bank{% endblock %}
 {% block topbar %}
-<header class="topbar wshead">
-  <a class="wsbrand" href="/org/{{ org.folder }}/workspace">
-    <span class="avatar">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
-    <span><span class="wsname">{{ org.name }}</span><span class="wssub mono">Research library · {{ npapers }} papers</span></span></a>
-  <nav class="right" aria-label="Workspace">
-    <a class="exit on" href="/org/{{ org.folder }}/workspace" aria-current="page">Ask</a>
-    {% if can_admin(request.state.user, org.folder) %}<a class="exit" href="/org/{{ org.folder }}/admin">Admin</a><a class="exit" href="/org/{{ org.folder }}/step/6">Setup</a>{% endif %}
-    {% include "_usernav.html" %}
-  </nav>
-</header>
-<div class="wsprivate"><div>Private to members of {{ org.name }}. Administrators can see the questions asked.</div></div>
+{{ orgbar(org, 'ask', 'Research library · ' ~ npapers ~ ' papers') }}
 {% endblock %}
 {% block pageclass %} wspage{% endblock %}
 {% block body %}
 <div id="wsRoot" data-folder="{{ org.folder }}" data-depth="{{ org.search_depth }}" data-format="{{ org.answer_format }}" data-cap="{{ cap }}">
-
-<form class="wssearch" onsubmit="return false">
-  <label class="mono" for="question">Ask the library</label>
-  <div class="qrow"><input type="text" id="question" maxlength="1000" placeholder="Ask about the research…" autofocus>
-    <button type="button" class="btn" id="goBtn">Search ↵</button></div>
-  <p class="optsentence">Answering as
-    <span class="pick"><button type="button" class="trig" aria-haspopup="true" aria-expanded="false"><span class="tval">{{ roles['scientist'] }}</span> ▾</button>
-      <span class="menu" hidden>{% for key, label in roles.items() %}<button type="button" class="seg role {{ 'on' if key == 'scientist' }}" data-role="{{ key }}" data-word="{{ label }}">{{ label }}</button>{% endfor %}</span></span>,
-    in <span class="pick"><button type="button" class="trig" aria-haspopup="true" aria-expanded="false"><span class="tval">{{ 'technical language' if org.answer_format == 'technical' else 'plain language' }}</span> ▾</button>
-      <span class="menu" hidden>
-        <button type="button" class="seg fmt {{ 'on' if org.answer_format != 'technical' }}" data-fmt="plain" data-word="plain language">Plain language</button>
-        <button type="button" class="seg fmt {{ 'on' if org.answer_format == 'technical' }}" data-fmt="technical" data-word="technical language">Technical</button></span></span>,
-    at {% if choose_depth %}<span class="pick"><button type="button" class="trig" aria-haspopup="true" aria-expanded="false"><span class="tval">{% for d in depths %}{% if d.key == org.search_depth %}{{ d.label|lower }} depth (≈ ${{ '%.2f'|format(d.cost) }}){% endif %}{% endfor %}</span> ▾</button>
-      <span class="menu" hidden>{% for d in depths %}<button type="button" class="seg depth {{ 'on' if d.key == org.search_depth }}" data-depth="{{ d.key }}" data-word="{{ d.label|lower }} depth (≈ ${{ '%.2f'|format(d.cost) }})" title="Estimated cost per question">{{ d.label }} <small>≈ ${{ '%.2f'|format(d.cost) }}</small></button>{% endfor %}</span></span>
-    {% else %}<span title="Set by your administrator">{{ org.search_depth }} depth (set by your administrator)</span>{% endif %}.
-    <label class="freechk"><input type="checkbox" id="freeOnly"> Passages only (free, no AI)</label>
-    {% if facets %}<span class="narrow-to">Narrow to <span id="chipRow">{% for f in facets %}<button type="button" class="fchip" data-cid="{{ f.id }}" data-label="{{ f.label }}"{% if loop.index > 3 %} hidden data-extra{% endif %}>any {{ f.label|lower }}</button>{% if not loop.last %}<span class="comma"{% if loop.index >= 3 %} hidden data-extra{% endif %}>, </span>{% endif %}{% endfor %}</span>
-      {% if facets|length > 3 %}<button type="button" class="more" id="moreFilters">+{{ facets|length - 3 }} more</button>{% endif %}</span>{% endif %}
-  </p>
-  {% if facets %}<div class="facetpanel" id="facetPanel" hidden></div>
-  <div class="hint">Filters use what the AI extracted from each paper{% if extracted < bank.inbank %} ({{ extracted }} of {{ npapers }} papers read so far){% endif %}.</div>{% endif %}
-  {% if can_admin(request.state.user, org.folder) %}<div class="hint">Roles are draft wording, still to be reviewed with the organization.</div>{% endif %}
-</form>
-
 <div class="wscols">
   <article class="wsmain" id="results">
+    <div id="empty" class="emptybox">
+      <div class="eyebrow link">Ask about the research library</div>
+      <h1>What would you like to know?</h1>
+    </div>
+    <form class="wssearch" onsubmit="return false">
+      <label class="sr-only" for="question">Your question</label>
+      <div class="qrow"><input type="text" id="question" maxlength="1000" placeholder="Ask about the research…" autofocus>
+        <button type="button" class="btn" id="goBtn">Search ↵</button></div>
+    </form>
     {% if idx.chunks == 0 %}
     <div class="callout warn"><div class="ctitle">The search index has not been built yet</div>The library needs to be cut into passages and prepared for meaning-based search before questions can be answered.
       {% if can_admin(request.state.user, org.folder) %}<div class="mt-s"><button type="button" class="btn small" id="buildIdx">Build the search index</button> <span class="filenote">Takes a few hours for a few hundred papers; faster when the computer is plugged in.</span></div>{% else %}<div class="filenote mt-s">An administrator needs to build it first.</div>{% endif %}</div>
@@ -54,28 +30,36 @@
     <div class="jobbox" id="jobBox" hidden role="status"><div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
       <div class="bar"><div class="fill" id="jobFill"></div></div><div class="jobresult" id="jobResult"></div></div>
     <div id="answer" aria-live="polite"></div>
-    <div id="empty" class="emptybox">
-      <div class="eyebrow link">Ask about the research</div>
-      <h1>What would you like to know?</h1>
-      <p class="lede">Questions are answered from the {{ npapers }} papers in this library, with every statement tied to the passage it came from.</p>
-      <div class="mono tryhead">Try one of these</div>
-      <ol class="suggest">
-        <li><button type="button" class="sg">What treatments have been reported, and how well do they work?</button></li>
-        <li><button type="button" class="sg">Which variants have been described and what symptoms did they cause?</button></li>
-        <li><button type="button" class="sg">Which papers used patient-derived cells?</button></li>
-      </ol>
-      <p class="disclaimer">This is research information, not medical advice. Please talk with your care team about your own situation.</p>
-    </div>
   </article>
+
   <aside class="wsside">
-    <section><h2 class="sidehd">In this library</h2>
-      <dl class="stats"><dt>{{ '{:,}'.format(npapers) }}</dt><dd>papers</dd><dt>{{ '{:,}'.format(idx.chunks) }}</dt><dd>searchable passages</dd>{% if extracted %}<dt>{{ '{:,}'.format(extracted) }}</dt><dd>papers read in detail</dd>{% endif %}</dl>
-      {% if can_admin(request.state.user, org.folder) %}<a class="lnk" href="/org/{{ org.folder }}/step/4">Manage schema →</a>{% endif %}</section>
+    <details class="optbox" id="optBox" open>
+      <summary class="sidehd">Options</summary>
+      <fieldset class="optgroup"><legend>Wording</legend>
+        <button type="button" class="seg fmt {{ 'on' if org.answer_format != 'technical' }}" data-fmt="plain">Plain language</button>
+        <button type="button" class="seg fmt {{ 'on' if org.answer_format == 'technical' }}" data-fmt="technical">Technical</button>
+      </fieldset>
+      <fieldset class="optgroup"><legend>Depth</legend>
+        {% if choose_depth %}{% for d in depths %}<button type="button" class="seg depth {{ 'on' if d.key == org.search_depth }}" data-depth="{{ d.key }}" title="Estimated cost per question">{{ d.label }} <small>≈ ${{ '%.2f'|format(d.cost) }}</small></button>{% endfor %}
+        {% else %}<span class="seg on static" title="Set by your administrator">{{ org.search_depth|capitalize }} <small>set by your administrator</small></span>{% endif %}
+      </fieldset>
+      {% if facets %}
+      <fieldset class="optgroup"><legend>Narrow to</legend>
+        <div id="chipRow" class="chiplist">{% for f in facets %}<button type="button" class="fchip" data-cid="{{ f.id }}" data-label="{{ f.label }}">any {{ f.label|lower }}</button>{% endfor %}</div>
+        <div class="facetpanel" id="facetPanel" hidden></div>
+        <div class="hint">Uses what was read from each paper{% if extracted < bank.inbank %} ({{ extracted }} of {{ npapers }} read so far){% endif %}.</div>
+      </fieldset>
+      {% endif %}
+      <label class="freechk"><input type="checkbox" id="freeOnly"> Passages only (free, no AI)</label>
+    </details>
+
+    <section><h2 class="sidehd">Your recent questions</h2>
+      <div id="recent">{% for r in recent %}<a class="recent" href="#" data-id="{{ r.id }}">{{ r.question }}</a>{% else %}<div class="sidebody faint">None yet.</div>{% endfor %}</div>
+      <div class="hint">Only you can see these.</div></section>
     <section><h2 class="sidehd">Spent today</h2>
       <div><strong class="big" id="spent">${{ '%.2f'|format(today) }}</strong> of ${{ '%.2f'|format(cap) }} daily limit</div>
       <div class="meterbar" role="img" aria-label="Share of the daily limit used"><div style="width: {{ [100, (100 * today / cap) if cap else 0]|min }}%"></div></div></section>
-    <section><h2 class="sidehd">Recent questions</h2>
-      <div id="recent">{% for r in recent %}<a class="recent" href="#" data-id="{{ r.id }}">{{ r.question }}</a>{% else %}<div class="sidebody faint">None yet.</div>{% endfor %}</div></section>
+    {% if can_admin(request.state.user, org.folder) %}<section><a class="lnk" href="/org/{{ org.folder }}/step/4">Manage schema →</a></section>{% endif %}
   </aside>
 </div>
 </div>

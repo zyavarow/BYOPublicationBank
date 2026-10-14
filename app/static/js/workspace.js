@@ -3,14 +3,14 @@
   const root = document.getElementById("wsRoot");
   const folder = root.dataset.folder;
   const $ = (id) => document.getElementById(id);
-  const state = { role: "scientist", depth: root.dataset.depth, fmt: root.dataset.format, filters: {} };
+  const state = { role: "general", depth: root.dataset.depth, fmt: root.dataset.format, filters: {} };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
   // roles, depth, wording
   for (const [sel, key, attr] of [[".role", "role", "role"], [".depth", "depth", "depth"], [".fmt", "fmt", "fmt"]]) {
     for (const b of document.querySelectorAll(sel)) b.addEventListener("click", () => {
       state[key] = b.dataset[attr];
-      for (const o of document.querySelectorAll(sel)) o.classList.toggle("on", o === b);
+      for (const o of document.querySelectorAll(sel)) { o.classList.toggle("on", o === b); o.setAttribute("aria-pressed", String(o === b)); }
       const pick = b.closest(".pick");
       if (pick) { pick.querySelector(".tval").textContent = b.dataset.word; closeMenus(); }
     });
@@ -28,6 +28,8 @@
   });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu")) closeMenus(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+  // on a phone the options start folded away so the question comes first
+  if (window.matchMedia("(max-width: 980px)").matches) { const ob = $("optBox"); if (ob) ob.open = false; }
   const moreBtn = $("moreFilters");
   if (moreBtn) moreBtn.addEventListener("click", () => {
     for (const x of document.querySelectorAll("[data-extra]")) x.hidden = false;

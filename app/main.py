@@ -992,6 +992,8 @@ def step6(request: Request, folder: str):
     with connect() as conn:
         oid = _org_id(conn, org)
         counts = bank.counts(conn, oid)
+        idx = search_index.status(conn, oid)
+        extracted = conn.execute("SELECT count(DISTINCT paper_id) FROM extractions WHERE org_id = %s AND status = 'ok'", (oid,)).fetchone()[0]
         if v is not None:
             from pubbank.template import load_context
             smp = samples.latest(conn, oid)
@@ -1001,7 +1003,7 @@ def step6(request: Request, folder: str):
     for c in (v["cards"] if v else []):
         if c["include"]:
             fields[c["kind"]] += 1
-    return _page(request, "step6.html", org=org, view=v, bank=counts, fields=fields, score=score, depths=schema_edit.depth_options(),
+    return _page(request, "step6.html", org=org, view=v, bank=counts, idx=idx, extracted=extracted, fields=fields, score=score, depths=schema_edit.depth_options(),
                  approved=bool(v) and org["schema_approved"] == v["version"], key=apikey.status(folder))
 
 
@@ -1183,7 +1185,7 @@ def workspace(request: Request, folder: str):
         idx = search_index.status(conn, oid)
         asker.ensure_table(conn)
         recent = [dict(id=r[0], question=r[1]) for r in conn.execute(
-            "SELECT id, question FROM ask_log WHERE org_id = %s ORDER BY id DESC LIMIT 8", (oid,))]
+            "SELECT id, question FROM ask_log WHERE org_id = %s AND user_id = %s ORDER BY id DESC LIMIT 8", (oid, request.state.user["id"]))]   # each person sees only their own questions
         today = asker.spent_today(conn, oid)
         facets = _facets(conn, oid, folder)
         extracted = conn.execute("SELECT count(DISTINCT paper_id) FROM extractions WHERE org_id = %s AND status = 'ok'", (oid,)).fetchone()[0]
@@ -1205,7 +1207,7 @@ def workspace_facets(folder: str):
 
 
 @app.post("/org/{folder}/workspace/ask")
-def workspace_ask(request: Request, folder: str, question: str = Form(""), role: str = Form("scientist"), depth: str = Form(""), fmt: str = Form(""),
+def workspace_ask(request: Request, folder: str, question: str = Form(""), role: str = Form("general"), depth: str = Form(""), fmt: str = Form(""),
                   mode: str = Form("answer"), filters: str = Form("{}")):
     import json as _json
     user_id = request.state.user["id"]
@@ -1294,13 +1296,17 @@ def org_admin_csv(request: Request, folder: str, days: int = 30, who: str = "", 
 
 
 @app.get("/org/{folder}/workspace/answer/{ask_id}")
-def workspace_answer(folder: str, ask_id: int):
+def workspace_answer(request: Request, folder: str, ask_id: int):
     org = _org_or_404(folder)
     if org is None:
         return JSONResponse({"error": "Unknown organization"}, status_code=404)
     with connect() as conn:
         oid = _org_id(conn, org)
-        r = conn.execute("SELECT id, question, answer, sources FROM ask_log WHERE id = %s AND org_id = %s", (ask_id, oid)).fetchone()
+        r = conn.execute("SELECT id, question, answer, sources, user_id FROM ask_log WHERE id = %s AND org_id = %s", (ask_id, oid)).fetchone()
+    user = request.state.user
+    # a saved answer belongs to the person who asked; administrators can read every answer (they see them on the Admin page too)
+    if r and r[4] != user["id"] and not auth.allows(user, folder, "admin"):
+        r = None
     if not r:
         return JSONResponse({"error": "Not found"}, status_code=404)
     return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": r[3]}

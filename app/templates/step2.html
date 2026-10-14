@@ -1,25 +1,27 @@
 {% extends "base.html" %}
 {% from "_steps.html" import steps %}
-{% block title %}Setup — Publication Bank{% endblock %}
+{% block title %}Setup 2 · Publication bank · BYO Publication Bank{% endblock %}
 {% block body %}
 {{ steps(org, 2) }}
+<div class="eyebrow link step-eyebrow">Step two</div>
 <h1>Build the publication bank</h1>
-<p class="lede">Three ways in — use whichever matches what you have. You can mix them: each paper is added once, even if it arrives by more than one route.</p>
-<div class="cols">
-  <div class="card main-col stack" id="addCard" data-folder="{{ org.folder }}">
-    <div class="tabs-pills" role="tablist">
-      <button type="button" class="tab" data-tab="pdf">Folder of PDFs</button>
-      <button type="button" class="tab" data-tab="ref">Reference manager export</button>
-      <button type="button" class="tab on" data-tab="pmid">PubMed ID list</button>
-    </div>
+<p class="lede">Three ways in. Use whichever matches what you have, and mix them freely: each paper is added once, even if it arrives by more than one route.</p>
 
+<div id="addCard" data-folder="{{ org.folder }}">
+  <div class="routes" role="tablist">
+    <button type="button" class="tab" data-tab="pdf" role="tab"><span class="rt-k">Route A</span><span class="rt-n">Folder of PDFs</span><span class="rt-s">Full text, slowest</span></button>
+    <button type="button" class="tab" data-tab="ref" role="tab"><span class="rt-k">Route B</span><span class="rt-n">Reference manager export</span><span class="rt-s">Your curated list</span></button>
+    <button type="button" class="tab on" data-tab="pmid" role="tab"><span class="rt-k">Route C</span><span class="rt-n">PubMed ID list</span><span class="rt-s">Simplest start</span></button>
+  </div>
+
+  <div class="routebody stack">
     <section class="panel" id="panel-pdf" hidden>
       <div class="inputbox">
         <label class="lab">Add PDF files</label>
         <div class="logo-row">
-          <label class="btn small upload" for="pdfFiles">Choose PDF files
+          <label class="btn line small upload" for="pdfFiles">Choose PDF files
             <input type="file" id="pdfFiles" accept=".pdf,application/pdf" multiple></label>
-          <label class="btn small upload" for="pdfDir">Choose a folder
+          <label class="btn line small upload" for="pdfDir">Choose a folder
             <input type="file" id="pdfDir" webkitdirectory multiple></label>
           <span class="filenote" id="pdfName">PDFs only. Folders are searched including subfolders.</span>
         </div>
@@ -38,7 +40,7 @@
         <div><h3>Good for</h3><ul>
           <li>The full text, so the AI can read methods, reagents and tables.</li>
           <li>Papers you have a license or permission for that are not free online.</li></ul></div>
-        <div><h3>Watch out for</h3><ul>
+        <div><h3>Keep in mind</h3><ul>
           <li>The slowest route: hundreds of PDFs take hours to read.</li>
           <li>Files can be messy: duplicates, supplements, scans that need text recognition.</li>
           <li>Titles and IDs have to be recovered from the text of each PDF.</li></ul></div>
@@ -49,7 +51,7 @@
       <div class="inputbox">
         <label class="lab">Export from your reference manager (Zotero, EndNote, Mendeley…)</label>
         <div class="logo-row">
-          <label class="btn small upload" for="refFile">Choose export file
+          <label class="btn line small upload" for="refFile">Choose export file
             <input type="file" id="refFile" accept=".ris,.bib,.bibtex,.csv,.txt"></label>
           <span class="filenote" id="refName">RIS, BibTeX or CSV, up to 25 MB.</span>
         </div>
@@ -62,7 +64,7 @@
           <li>The organization's own curated list, with clean titles, authors and DOIs.</li>
           <li>Fast, and duplicates are easy to catch.</li>
           <li>Each reference is matched to PubMed, so abstracts and open-access full text come with it.</li></ul></div>
-        <div><h3>Watch out for</h3><ul>
+        <div><h3>Keep in mind</h3><ul>
           <li>An export is usually just citations, with no full text. Papers PubMed does not hold, or that are not open access, stay as citation or abstract only.</li>
           <li>Some references have no DOI or a different title spelling and will not match.</li></ul></div>
       </div>
@@ -70,68 +72,69 @@
 
     <section class="panel" id="panel-pmid">
       <div class="inputbox">
-        <label class="lab" for="pmidText">Paste PubMed IDs — one per line, or comma-separated</label>
+        <label class="lab" for="pmidText">Paste PubMed IDs, one per line or separated by commas</label>
         <textarea id="pmidText" rows="4" placeholder="38291045, 39012233, 37765521"></textarea>
         <div class="actions"><span class="count" id="pmidCount">0 IDs detected</span><button type="button" class="btn small" id="pmidGo" disabled>Fetch &amp; add</button></div>
       </div>
       <div class="proscons">
         <div><h3>Good for</h3><ul>
           <li>The simplest start: paste a list, no files.</li>
-          <li>Clean metadata and the abstract straight from PubMed, plus the full text when PubMed Central has it open access.</li></ul></div>
-        <div><h3>Watch out for</h3><ul>
+          <li>Clean details and the abstract straight from PubMed, plus the full text when PubMed Central has it open access.</li></ul></div>
+        <div><h3>Keep in mind</h3><ul>
           <li>Only papers indexed in PubMed (no preprints or books).</li>
-          <li>Many papers are not open access, so they stay <strong>abstract only</strong>, and fields such as methods or reagents may come back "Not found".</li></ul></div>
+          <li>Many papers are not open access, so they stay <em>abstract only</em>, and fields such as methods or reagents may come back “Not found”.</li></ul></div>
       </div>
     </section>
 
-    <div class="jobbox" id="jobBox" hidden>
+    <div class="jobbox" id="jobBox" hidden role="status">
       <div class="jobhead"><strong id="jobStage">Starting…</strong><span id="jobNums"></span></div>
       <div class="bar"><div class="fill" id="jobFill"></div></div>
       <div class="jobresult" id="jobResult"></div>
     </div>
   </div>
-
-  <div class="card side-col listcard">
-    <div class="listhead">
-      <div class="lab" style="margin:0">In your bank</div>
-      <form method="get" class="filters">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search title or PMID">
-        <select name="status" onchange="this.form.submit()">
-          <option value="">All ({{ counts.total }})</option>
-          {% for key, (label, tone) in statuses.items() %}{% if counts[key] %}
-          <option value="{{ key }}" {{ 'selected' if status == key else '' }}>{{ label }} ({{ counts[key] }})</option>{% endif %}{% endfor %}
-        </select>
-      </form>
-    </div>
-    <div class="items">
-      {% for it in items %}
-      <div class="item" {% if it.note %}title="{{ it.note }}"{% endif %}>
-        <div class="main"><div class="ttl">{{ it.title }}</div>
-          <div class="sub">{% if it.meta %}{{ it.meta }} · {% endif %}<span class="src">{{ it.source }}</span>{% if it.note %} · {{ it.note }}{% endif %}</div></div>
-        <div class="badge {{ it.tone }}">{{ it.label }}</div>
-      </div>
-      {% else %}
-      <div class="empty">{% if counts.total %}Nothing matches that search.{% else %}No publications yet. Add some on the left.{% endif %}</div>
-      {% endfor %}
-    </div>
-    {% if pages > 1 %}
-    <div class="pager">
-      {% if p > 1 %}<a href="?q={{ q|urlencode }}&status={{ status }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
-      <span>Page {{ p }} of {{ pages }} · {{ total }} papers</span>
-      {% if p < pages %}<a href="?q={{ q|urlencode }}&status={{ status }}&p={{ p + 1 }}">Next →</a>{% else %}<span></span>{% endif %}
-    </div>
-    {% endif %}
-  </div>
 </div>
-<div class="footer">
-  <div class="summary"><strong>{{ counts.total }} publications</strong> received · {{ counts.inbank + counts.abstract }} in the bank
-    {% if counts.abstract %}({{ counts.abstract }} abstract only){% endif %}
-    {% if counts.setaside + counts.duplicate + counts.ocr + counts.failed %} · {{ counts.setaside + counts.duplicate + counts.ocr + counts.failed }} set aside{% endif %}
-    {% if counts.processing %} · {{ counts.processing }} processing{% endif %}</div>
-  <div style="display:flex;gap:14px;align-items:center">
-    <a class="btn ghost" href="/org/{{ org.folder }}/step/1">← Back</a>
-    <a class="btn" href="/org/{{ org.folder }}/step/3">Continue — Clean up the bank →</a>
+
+<section class="banklist">
+  <div class="bankhead">
+    <h2>In the bank</h2>
+    <p class="summary"><strong>{{ counts.total }}</strong> received · <strong>{{ counts.inbank + counts.abstract }}</strong> in the bank{% if counts.abstract %} · <strong>{{ counts.abstract }}</strong> abstract only{% endif %}{% if counts.setaside + counts.duplicate + counts.ocr + counts.failed %} · <strong>{{ counts.setaside + counts.duplicate + counts.ocr + counts.failed }}</strong> set aside{% endif %}{% if counts.processing %} · <strong>{{ counts.processing }}</strong> processing{% endif %}</p>
   </div>
+  <form method="get" class="findrow">
+    <label class="mono" for="find">Find</label>
+    <input type="text" id="find" name="q" value="{{ q }}" placeholder="Title or PubMed ID">
+    <select name="status" onchange="this.form.submit()" aria-label="Status">
+      <option value="">All statuses ({{ counts.total }})</option>
+      {% for key, (label, tone) in statuses.items() %}{% if counts[key] %}
+      <option value="{{ key }}" {{ 'selected' if status == key else '' }}>{{ label }} ({{ counts[key] }})</option>{% endif %}{% endfor %}
+    </select>
+  </form>
+  {% if items %}
+  <div class="tablewrap"><table class="banktable">
+    <thead><tr><th>Paper</th><th>Journal</th><th>Via</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for it in items %}
+      <tr{% if it.note %} title="{{ it.note }}"{% endif %}>
+        <td class="t">{{ it.title }}{% if it.note %}<div class="n">{{ it.note }}</div>{% endif %}</td>
+        <td class="j">{{ it.meta }}</td><td class="v">{{ it.source }}</td>
+        <td><span class="badge {{ it.tone }}">{{ it.label }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}
+  <div class="empty">{% if counts.total %}Nothing matches that search.{% else %}No publications yet. Add some above.{% endif %}</div>
+  {% endif %}
+  {% if pages > 1 %}
+  <div class="pager">
+    {% if p > 1 %}<a href="?q={{ q|urlencode }}&status={{ status }}&p={{ p - 1 }}">← Previous</a>{% else %}<span></span>{% endif %}
+    <span class="mono">Page {{ p }} of {{ pages }} · {{ total }} papers</span>
+    {% if p < pages %}<a href="?q={{ q|urlencode }}&status={{ status }}&p={{ p + 1 }}">Next page →</a>{% else %}<span></span>{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<div class="footer">
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/1">← Organization &amp; look</a>
+  <a class="btn" href="/org/{{ org.folder }}/step/3">Save &amp; continue: Clean up the publication bank →</a>
 </div>
 <script src="{{ static_v('js/step2.js') }}"></script>
 {% endblock %}

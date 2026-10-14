@@ -1,10 +1,10 @@
-  <div class="items" style="max-height:none">
+  <div class="items flat">
     {% for it in items %}
     <details class="qrow">
       <summary>
-        <div class="main"><div class="ttl" style="white-space:normal">{{ it.question }}</div>
-          <div class="sub" style="white-space:normal">{{ it.who }} · <time data-ts="{{ it.at.isoformat() }}">{{ it.at.strftime('%b %d, %H:%M') }}</time>
-            · {{ roles.get(it.role, [it.role])[0] if it.role else '' }} · {{ it.depth|capitalize }} · {{ money(it.cost) }}</div></div>
+        <div class="main"><div class="ttl wrap">{{ it.question }}</div>
+          <div class="sub wrap">{{ it.who }} · <time data-ts="{{ it.at.isoformat() }}">{{ it.at.strftime('%b %d, %H:%M') }}</time>
+            · {% if it.role and it.role != 'general' %}{{ roles.get(it.role, [it.role])[0] }} · {% endif %}{{ it.depth|capitalize }} · {{ money(it.cost) }}</div></div>
         <div class="badge {{ {'High': '', 'Medium': 'warn', 'Low': 'bad'}.get(it.confidence, 'gray') }}">{{ it.confidence or '—' }}</div>
         <div class="badge gray">{{ it.papers }} paper{{ '' if it.papers == 1 else 's' }}</div>
       </summary>
@@ -12,7 +12,7 @@
         {% for para in it.paragraphs %}<p>{{ para.text }}</p>{% endfor %}
         {% if it.not_covered %}<div class="callout notcov"><div class="ctitle">Not covered by this library</div><ul>{% for n in it.not_covered %}<li>{{ n }}</li>{% endfor %}</ul></div>{% endif %}
         {% if it.disagreements %}<div class="callout disag"><div class="ctitle">Where papers differ</div><ul>{% for n in it.disagreements %}<li>{{ n }}</li>{% endfor %}</ul></div>{% endif %}
-        {% if it.sources %}<div class="hint" style="margin-top:10px"><strong>Sources:</strong><br>{% for s in it.sources %}[{{ s.no }}] {{ s.title }}{% if s.year %} ({{ s.year }}){% endif %}<br>{% endfor %}</div>{% endif %}
+        {% if it.sources %}<div class="hint mt-m"><strong>Sources:</strong><br>{% for s in it.sources %}[{{ s.no }}] {{ s.title }}{% if s.year %} ({{ s.year }}){% endif %}<br>{% endfor %}</div>{% endif %}
       </div>
     </details>
     {% else %}
@@ -22,7 +22,7 @@
   {% if pages > 1 %}
   <div class="pager">
     {% if p > 1 %}<a href="#" data-page="{{ p - 1 }}">← Newer</a>{% else %}<span></span>{% endif %}
-    <span>Page {{ p }} of {{ pages }} · {{ total }} questions</span>
+    <span class="mono">Page {{ p }} of {{ pages }} · {{ total }} questions</span>
     {% if p < pages %}<a href="#" data-page="{{ p + 1 }}">Older →</a>{% else %}<span></span>{% endif %}
   </div>
-  {% elif total %}<div class="pager"><span></span><span>{{ total }} question{{ '' if total == 1 else 's' }}</span><span></span></div>{% endif %}
+  {% elif total %}<div class="pager"><span></span><span class="mono">{{ total }} question{{ '' if total == 1 else 's' }}</span><span></span></div>{% endif %}

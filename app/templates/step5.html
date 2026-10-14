@@ -1,21 +1,27 @@
 {% extends "base.html" %}
 {% from "_steps.html" import steps %}
-{% block title %}Setup — Check a sample{% endblock %}
+{% block title %}Setup 5 · Check a sample · BYO Publication Bank{% endblock %}
 {% block body %}
 {{ steps(org, 5) }}
 <div id="sampleRoot" data-folder="{{ org.folder }}" data-state="{{ state }}" {% if smp %}data-sample="{{ smp.id }}"{% endif %}>
-<h1>Check a sample</h1>
+<div class="eyebrow link step-eyebrow">Step five · recommended</div>
+<h1>Check a sample before reading everything</h1>
 
 {% if state == 'no_template' %}
-<p class="lede">This step reads a few papers with your extraction template, so the template has to exist first. It is set up in step 3.</p>
+<p class="lede">This step reads a few papers with your extraction template, so the template has to exist first. It is set up in step 4.</p>
 <div class="card soon"><p>Finish the Extraction Schema step, then come back.</p>
   <p><a class="btn line" href="/org/{{ org.folder }}/step/4">← Extraction Schema</a></p></div>
 
 {% elif state == 'none' %}
 <p class="lede">Before the whole library is read, check a small sample. We choose a varied set of papers, read them with your template, and show you every answer next to the quote it came from. You mark each one right or wrong, and the scorecard shows which fields need work. It is recommended, not required.</p>
-<div class="card stack" style="max-width:720px">
+<ol class="three">
+  <li><span class="n">1</span><div class="t">Pick a sample</div><div class="d">Free. We choose a varied set of papers.</div></li>
+  <li><span class="n">2</span><div class="t">We read them</div><div class="d">You see the price and confirm first.</div></li>
+  <li><span class="n">3</span><div class="t">You mark right or wrong</div><div class="d">The scorecard shows what to fix.</div></li>
+</ol>
+<div class="card stack narrow720 pickbox">
   <div class="lab">How big a sample?</div>
-  <div class="web-row"><input type="number" id="sampleN" value="{{ default_size }}" min="3" max="{{ max_size }}" style="max-width:120px">
+  <div class="web-row"><input type="number" id="sampleN" value="{{ default_size }}" min="3" max="{{ max_size }}" class="small-num">
     <button type="button" class="btn small" id="pickBtn">Pick a sample</button></div>
   <div class="hint">{{ pool }} papers in the bank are suitable. Fifteen covers the main kinds of paper. Choosing costs nothing; you will see the price before anything is read.</div>
 </div>
@@ -24,9 +30,9 @@
 <p class="lede">These papers were chosen to be varied: case reports, trials, reviews and others, from different years. Swap any you would rather not use. Nothing is read, and nothing is charged, until you press Run.</p>
 <div class="cols">
   <div class="card main-col stack">
-    <div class="items" style="max-height:none">
+    <div class="items flat">
       {% for p in papers %}
-      <div class="item"><div class="main"><div class="ttl" style="white-space:normal">{{ p.title }}</div>
+      <div class="item"><div class="main"><div class="ttl wrap">{{ p.title }}</div>
         <div class="sub">{{ p.journal or '' }} {{ p.year or '' }}{% if p.journal or p.year %} · {% endif %}{{ 'Full text' if p.level == 'full_text' else 'Abstract only' }} · {{ (p.chars or 0) // 1000 }}k characters</div></div>
         <button type="button" class="dec swap" data-paper="{{ p.id }}">Swap</button></div>
       {% endfor %}
@@ -35,7 +41,7 @@
   <div class="card side-col stack">
     <h2>Price</h2>
     {% if est %}
-    <div class="costline"><strong>{{ est.papers }} papers · about {{ money(est.expected) }}</strong><br><span style="margin:0">at most {{ money(est.high) }}; the run stops if it reaches that. About {{ est.minutes }} minutes.</span></div>
+    <div class="costline"><strong>{{ est.papers }} papers · about {{ money(est.expected) }}</strong><br><span>at most {{ money(est.high) }}; the run stops if it reaches that. About {{ est.minutes }} minutes.</span></div>
     <label class="check"><input type="checkbox" id="runConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
     <button type="button" class="btn" id="runBtn" disabled {{ '' if has_key else 'data-nokey=1' }}>Read these papers</button>
     {% if not has_key %}<div class="hint">No Anthropic API key is set on this computer.</div>{% endif %}
@@ -59,13 +65,13 @@
     <a class="pitem {{ 'on' if loop.index0 == idx else '' }}" href="?paper={{ loop.index0 }}">
       <span class="pt">{{ p.title }}</span><span class="pc">{{ done_rows.get(p.id, 0) }}/{{ answers_total or 10 }}</span></a>
     {% endfor %}
-    <button type="button" class="btn line small" id="againBtn" style="margin-top:12px">Start a new sample</button>
+    <button type="button" class="btn line small mt-m" id="againBtn">Start a new sample</button>
   </aside>
   <main class="stack">
     {% if cur %}
     <div class="card">
-      <h2 style="margin-bottom:4px">{{ cur.title }}</h2>
-      <div class="sub" style="font-size:12px;color:var(--faint)">{{ cur.journal or '' }} {{ cur.year or '' }} · {{ 'Full text' if cur.level == 'full_text' else 'Abstract only' }}
+      <h2 class="tight">{{ cur.title }}</h2>
+      <div class="sub papermeta">{{ cur.journal or '' }} {{ cur.year or '' }} · {{ 'Full text' if cur.level == 'full_text' else 'Abstract only' }}
         {% if cur.source == 'pdf' %} · <a class="lnk" target="_blank" href="/org/{{ org.folder }}/paper/{{ cur.id }}/pdf">Open the PDF</a>{% endif %}
         {% if cur.pmid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pubmed.ncbi.nlm.nih.gov/{{ cur.pmid }}/">PubMed</a>{% endif %}
         {% if cur.pmcid %} · <a class="lnk" target="_blank" rel="noopener" href="https://pmc.ncbi.nlm.nih.gov/articles/{{ cur.pmcid }}/">PubMed Central</a>{% endif %}
@@ -104,15 +110,15 @@
       <label class="btn line small upload" for="chkFile">Upload reviewed<input type="file" id="chkFile" accept=".xlsx"></label>
       <div class="filenote" id="chkNote"></div>
     </div>
-    <div class="hint">Changing the template? Go back to step 3, then start a new sample to see the effect. A new sample costs again.</div>
+    <div class="hint">Changing the template? Go back to step 4, then start a new sample to see the effect. A new sample costs again.</div>
   </aside>
 </div>
 <script id="scoreData" type="application/json">{{ score | tojson }}</script>
 {% endif %}
 
 <div class="footer">
-  <a class="btn ghost" href="/org/{{ org.folder }}/step/4">← Extraction Schema</a>
-  <a class="btn" href="/org/{{ org.folder }}/step/6">{{ 'Continue — Review & Launch →' if state == 'done' else 'Skip for now — Review & Launch →' }}</a>
+  <a class="btn ghost" href="/org/{{ org.folder }}/step/4">← Extraction schema</a>
+  {% if state == 'done' %}<a class="btn" href="/org/{{ org.folder }}/step/6">Continue: Review &amp; launch →</a>{% else %}<a class="skip" href="/org/{{ org.folder }}/step/6">Skip for now: Review &amp; launch →</a>{% endif %}
 </div>
 </div>
 <script src="{{ static_v('js/step5.js') }}"></script>

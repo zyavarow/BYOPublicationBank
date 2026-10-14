@@ -93,13 +93,16 @@
     box.appendChild(el("h1", "qshow", r.question));
     const lvl = a.confidence.toLowerCase();
     const strip = el("div", "evstrip");
-    strip.appendChild(el("span", "lab2", "Strength of evidence"));
-    const meter = el("span", "meter"); meter.setAttribute("role", "img"); meter.setAttribute("aria-label", `${METER[lvl] || 1} of 5: ${lvl}`);
-    for (let i = 0; i < 5; i++) meter.appendChild(el("i", i < (METER[lvl] || 1) ? "" : "off"));
+    const scored = Number.isFinite(a.confidence_score);
+    const filled = scored ? Math.round(a.confidence_score / 20) : (METER[lvl] || 1);
+    strip.appendChild(el("span", "lab2", "Evidence strength"));
+    const meter = el("span", "meter"); meter.setAttribute("role", "img"); meter.setAttribute("aria-label", `${filled} of 5: ${lvl}`);
+    for (let i = 0; i < 5; i++) meter.appendChild(el("i", i < filled ? "" : "off"));
     strip.appendChild(meter);
-    strip.appendChild(el("span", "level", a.confidence));
+    strip.appendChild(el("span", "level", scored ? `${a.confidence_score}% · ${a.confidence}` : a.confidence));
     strip.appendChild(el("span", "stats2", [`${a.papers_cited || 0} paper${a.papers_cited === 1 ? "" : "s"}`, Number.isFinite(a.seconds) ? `${Math.round(a.seconds)} s` : "", `$${(a.cost || 0).toFixed(3)}`].filter(Boolean).join(" · ")));
     box.appendChild(strip);
+    if (scored && (a.confidence_parts || []).length) box.appendChild(howScore(a));
     const body = el("div", "anscard");
     if (!a.paragraphs.length) body.appendChild(el("p", "ansp faint", "Nothing in the library matched this question."));
     for (const p of a.paragraphs) body.appendChild(cited(p.text));
@@ -116,6 +119,17 @@
       const ul = el("ul"); a.disagreements.forEach((x) => ul.appendChild(cited(x, "li"))); c.appendChild(ul); box.appendChild(c);
     }
     renderSources(box, r.sources);
+  }
+  // "How is this calculated?": the points behind the evidence percent, and why it was held back if it was
+  function howScore(a) {
+    const d = el("details", "how");
+    d.appendChild(el("summary", "", "How is this calculated?"));
+    const ul = el("ul");
+    for (const p of a.confidence_parts) ul.appendChild(el("li", "", `${p.name}: ${p.points} of ${p.max}. ${p.note}.`));
+    d.appendChild(ul);
+    if (a.confidence_held && a.confidence_held.length) d.appendChild(el("p", "held", `Held back to ${a.confidence}: ${a.confidence_held.join("; ")}.`));
+    d.appendChild(el("p", "fine", "This scores how well the library supports the answer: how many different papers back it, whether they agree, and how strong the evidence is. It is not the chance that the answer is right. Study design counts only for papers already read in detail; for the others it is treated as neutral."));
+    return d;
   }
   // text with [n] markers: a run such as [1][2] becomes one small raised "1,2" whose numbers link to the sources
   function jumpTo(n) { const s = $("src-" + n); if (s) { s.scrollIntoView({ behavior: "smooth", block: "center" }); s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1600); } }

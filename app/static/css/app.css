@@ -549,3 +549,23 @@ select.auto { width: auto; } .periodpick { min-width: 150px; }
 details.how { margin: -6px 0 4px; font-size: 16px; color: var(--label); } details.how > summary { cursor: pointer; font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--link); padding: 4px 0; }
 details.how ul { margin: 8px 0 6px; padding-left: 18px; } details.how li { margin-bottom: 3px; }
 details.how .held { margin: 6px 0; padding: 8px 12px; background: var(--warn-bg); color: var(--warn); } details.how .fine { margin: 8px 0 0; font-size: 14.5px; font-style: italic; color: var(--faint); }
+
+/* setup 5 review: answers use the full width; scorecard and paper list share a sticky rail on the right */
+.review4 { grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; }
+.review4 > main { grid-column: 1; min-width: 0; }
+.rail { grid-column: 2; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 20px; align-self: start; }
+.rail .score, .rail .plist { position: static; max-height: none; }
+.rail .plist { max-height: 340px; overflow-y: auto; }
+.acard { border-top: 1px solid var(--ink); }
+.acard .ahead strong { font-size: 18px; }
+.acard .entry .etext { font-style: italic; font-weight: 400; font-size: 17px; }
+.acard blockquote { border-left: 2px solid var(--primary); background: none; padding: 0 0 0 16px; font-size: 16px; }
+.acard input.note { border: 0; border-bottom: 1px solid var(--rule); background: transparent; font: italic 400 15.5px var(--serif); }
+.stbl td:first-child { padding-right: 8px; }
+@media (max-width: 1100px) { .review4 { grid-template-columns: 1fr; } .rail { position: static; max-height: none; grid-column: 1; } }
+
+/* setup 4: the AI proposal gets the full width, above the two columns */
+.proposal-wide { margin-bottom: 32px; border-top: 3px solid var(--primary); }
+.proposal-wide .pitemrow textarea { max-width: 100%; }
+.proposal-wide .gtbl { table-layout: fixed; } .proposal-wide .gtbl th:nth-child(1) { width: 16%; } .proposal-wide .gtbl th:nth-child(2) { width: 26%; } .proposal-wide .gtbl th:nth-child(3) { width: 20%; } .proposal-wide .gtbl th:last-child { width: 36px; }
+.s4-left { flex: 1; } .s4-right { flex: 1; }

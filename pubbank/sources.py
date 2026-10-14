@@ -55,7 +55,7 @@ def ensure_columns(conn):
 def parse_pmids(text):
     """Returns (unique PubMed IDs in the order given, the pieces that are not IDs)."""
     good, bad = [], []
-    text = re.sub(r"(?i)\b(pmid|pubmed id|pubmed)\s*:?\s*", "", text)
+    text = re.sub(r"(?i)\b(pmid|pubmed id|pubmed)\s*[:\-]?\s*", "", text)
     for tok in re.split(r"[\s,;]+", text.strip()):
         if not tok:
             continue
@@ -468,6 +468,18 @@ def get_job(jid):
         return dict(JOBS.get(jid) or {})
 
 
+def prepare_search(jid, org_id):
+    """Cut newly added papers into passages and compute their search vectors: the same step as the "Build the search index" button, which only
+    touches papers that do not have passages yet. Returns (done, message): a failure here never hides that the papers themselves were added."""
+    from pubbank import index as search_index
+    try:
+        _set(jid, stage="Preparing the new papers for search", done=0, total=0)
+        search_index.build(org_id, on_progress=lambda stage, d, t: _set(jid, stage=stage, done=d, total=t))
+        return True, ""
+    except Exception as e:
+        return False, f"The papers were added, but preparing them for search did not finish ({type(e).__name__}). Use Prepare for search to try again."
+
+
 def _ingest(jid, org_id, records_by_pmid, extra_refs, source, bad_tokens=()):
     """Shared tail of both jobs: fetch PMC text, save everything, summarise."""
     conn = connect()
@@ -495,8 +507,9 @@ def _ingest(jid, org_id, records_by_pmid, extra_refs, source, bad_tokens=()):
                 time.sleep(pause)
             counts[save_paper(conn, org_id, rec, source, sections)] += 1
             _set(jid, done=i)
+        indexed, index_error = prepare_search(jid, org_id) if new else (True, "")
         _set(jid, finished=True, stage="Done", result={"added": len(new), "already": already, "unmatched": len(extra_refs),
-                                                       "not_in_pubmed": list(bad_tokens), **counts})
+                                                       "not_in_pubmed": list(bad_tokens), "indexed": indexed, "index_error": index_error, **counts})
     except Exception as e:
         _set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
     finally:

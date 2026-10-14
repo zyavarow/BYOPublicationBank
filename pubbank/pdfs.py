@@ -112,8 +112,9 @@ def run_job(jid, org_id, db_slug, copy_files=None):
             bank.apply_rules(conn, org_id)
             after = bank.counts(conn, org_id)
         added = after["total"] - before
+        indexed, index_error = sources.prepare_search(jid, org_id) if added > 0 else (True, "")
         sources._set(jid, finished=True, stage="Done", result={
             "added": added, "kind": "pdf", "in_bank": after["inbank"] + after["abstract"], "ocr": after["ocr"],
-            "duplicate": after["duplicate"], "setaside": after["setaside"], "failed": after["failed"]})
+            "duplicate": after["duplicate"], "setaside": after["setaside"], "failed": after["failed"], "indexed": indexed, "index_error": index_error})
     except Exception as e:
         sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")

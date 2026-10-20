@@ -12,14 +12,14 @@
   <div><div class="lab">Email</div>{{ request.state.user.email }}</div>
   <div><div class="lab">Access</div>{% if request.state.user.is_super %}Owner of this installation (every organization){% else %}{% for f, r in request.state.user.orgs.items() %}{{ f }}: {{ 'administrator' if r == 'admin' else 'member' }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% endif %}</div>
 </div>
-<div class="card stack narrow mt">
-  <h2>Change your password</h2>
+{% if mode != 'link' %}<div class="card stack narrow mt">
+  <h2>{{ 'Change your password' if has_password else 'Set a password' }}</h2>
   <form method="post" action="/account/password" class="stack">
-    <div><label class="lab" for="current">Current password</label><input type="password" id="current" name="current" autocomplete="current-password" required></div>
+    {% if has_password %}<div><label class="lab" for="current">Current password</label><input type="password" id="current" name="current" autocomplete="current-password" required></div>{% endif %}
     <div><label class="lab" for="password">New password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required></div>
     <div><label class="lab" for="password2">New password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>
     <button class="btn start" type="submit">Change password</button>
   </form>
   <div class="hint">Changing your password signs you out everywhere else.</div>
-</div>
+</div>{% else %}<div class="card stack narrow mt"><h2>How you sign in</h2><p class="plain nomargin">This installation uses emailed sign-in links, so there is no password to remember. Each time you sign in, we email you a link.</p></div>{% endif %}
 {% endblock %}

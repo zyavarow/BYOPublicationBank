@@ -6,7 +6,10 @@
 <p class="tagline">Invitation and reset links work once and expire after a few days. Ask the person who invited you for a new one.</p>
 <a class="btn line" href="/login">Go to sign in</a>
 {% else %}
-{% if link.purpose == 'reset' %}
+{% if link.purpose == 'reset' and mode == 'link' %}
+<h1>Sign in</h1>
+<p class="tagline">For {{ link.email }}. Press the button to sign in.</p>
+{% elif link.purpose == 'reset' %}
 <h1>Choose a new password</h1>
 <p class="tagline">For {{ link.email }}. After you save it you will be signed in.</p>
 {% elif existing %}
@@ -14,7 +17,7 @@
 <p class="tagline">{{ link.email }} already has an account here.</p>
 {% else %}
 <h1>Welcome{% if org_name %} to {{ org_name }}{% endif %}</h1>
-<p class="tagline">You have been invited as {{ 'an <strong>administrator</strong>'|safe if link.role == 'admin' else 'a <strong>member</strong>'|safe }}. Choose a password to create your account for {{ link.email }}.</p>
+<p class="tagline">You have been invited as {{ 'an <strong>administrator</strong>'|safe if link.role == 'admin' else 'a <strong>member</strong>'|safe }}. {% if mode == 'link' %}Tell us your name to create your account for {{ link.email }}. There is no password: next time you will sign in with a link we email you.{% else %}Choose a password to create your account for {{ link.email }}.{% endif %}</p>
 {% if link.role != 'admin' %}<p class="after">Good to know: administrators of {{ org_name or 'this organization' }} can see the questions members ask.</p>{% endif %}
 {% endif %}
 {% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
@@ -28,10 +31,10 @@
 {% else %}
 <form method="post" action="/invite/{{ token }}">
   {% if not existing %}<div><label class="lab" for="name">Your name</label><input type="text" id="name" name="name" maxlength="120" autocomplete="name"></div>{% endif %}
-  <div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
+  {% if mode != 'link' %}<div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
     <div class="hint">At least 10 characters. A few words in a row make a good, easy-to-remember password.</div></div>
-  <div><label class="lab" for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>
-  <button class="btn" type="submit">{{ 'Save password' if link.purpose == 'reset' else 'Create account' }}</button>
+  <div><label class="lab" for="password2">Password again</label><input type="password" id="password2" name="password2" autocomplete="new-password" required></div>{% endif %}
+  <button class="btn" type="submit">{% if link.purpose == 'reset' %}{{ 'Sign in' if mode == 'link' else 'Save password' }}{% else %}Create account{% endif %}</button>
 </form>
 {% endif %}
 {% endif %}

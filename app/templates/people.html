@@ -36,7 +36,8 @@
       <td>{{ 'Administrator' if p.role == 'admin' else 'Member' }}</td>
       <td class="j">{% if p.last_login %}Last signed in {{ p.last_login.strftime('%b %d, %Y') }}{% else %}Has not signed in yet{% endif %}</td>
       <td class="ra">
-        {% if p.can_reset %}<form method="post" action="/org/{{ org.folder }}/people/reset" class="inline"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="linkbtn" type="submit">Reset link</button></form>{% endif %}
+        {% if p.can_reset and login_mode() != 'link' %}<form method="post" action="/org/{{ org.folder }}/people/reset" class="inline"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="linkbtn" type="submit">Reset link</button></form>{% endif %}
+        {% if p.can_reset and login_mode() != 'password' %}<form method="post" action="/org/{{ org.folder }}/people/signin-link" class="inline"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="linkbtn" type="submit">Sign-in link</button></form>{% endif %}
         {% if p.id != request.state.user.id %}<form method="post" action="/org/{{ org.folder }}/people/remove" class="inline" onsubmit="return confirm('Remove this person from {{ org.name|e }}?')"><input type="hidden" name="user_id" value="{{ p.id }}"><button class="linkbtn danger" type="submit">Remove</button></form>{% endif %}</td></tr>
     {% endfor %}
   </table></div>

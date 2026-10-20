@@ -1,0 +1,16 @@
+{% extends "auth_base.html" %}
+{% block title %}Owner sign-in · BYO Publication Bank{% endblock %}
+{% block auth %}
+<h1>Owner sign-in</h1>
+<p class="tagline">For the installation owner when the emailed sign-in link is not arriving. Enter your email and the setup code from the host's settings (<span class="mono">PUBBANK_SETUP_CODE</span>).</p>
+{% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+{% if has_code %}
+<form method="post" action="/recover">
+  <div><label class="lab" for="email">Owner's email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
+  <div><label class="lab" for="code">Setup code</label><input type="password" id="code" name="code" autocomplete="off" required></div>
+  <button class="btn" type="submit">Sign in</button>
+</form>
+{% endif %}
+<p class="after">Every use of this page is recorded. Only the owner account can sign in here.</p>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+{% endblock %}

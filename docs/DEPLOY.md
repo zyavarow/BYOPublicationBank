@@ -88,7 +88,45 @@ the search model and all passage vectors (about 150 MB for the program, 135 MB f
 - **Handing over:** the foundation will later deploy its own fresh copy from the same code under *its* hosting account, enter its own Anthropic key, and run extraction itself. Delete this test installation when that is done.
 - **Backups:** turn on backups for the database service if your plan offers them. The laptop's `scripts/backup_db.py` still works against the laptop copy.
 
-## Optional: "Forgot your password?" by email
+## Email and sign-in links (Resend)
+
+The app can email people a one-time sign-in link, so nobody needs a password. Email goes out through **Resend** over the web, which works on every Railway plan (including Hobby, where ordinary SMTP is blocked).
+
+**1. Resend (once per sending domain).** Create a Resend account, add your domain under *Domains*, and copy the DNS records it shows into wherever the domain's DNS is managed. Resend recommends a **subdomain** (for example `mail.example.com`) rather than the main domain, so everyday email and these sign-in emails do not interfere. Wait until the domain shows as verified. Then create an **API key** (a "sending access" key limited to that domain is enough).
+
+**2. Railway variables** (app service, Variables tab; type the key only there, never in chat or in code):
+
+| Variable | Value |
+|---|---|
+| `RESEND_API_KEY` | the key from Resend (starts with `re_`) |
+| `PUBBANK_MAIL_FROM` | the address people see, on the verified domain, for example `login@mail.example.com` |
+| `PUBBANK_MAIL_FROM_NAME` | optional; the name shown next to it (default `BYO Publication Bank`) |
+| `PUBBANK_BASE_URL` | the site's public address, for example `https://your-site.up.railway.app` (used inside emailed links) |
+| `PUBBANK_SETUP_CODE` | already set for first run; also the owner's way in if email breaks (see below) |
+
+**3. Test it.** Sign in as the owner, open **Home**, and press **Send a test email to me** in the *Email* section. A success message means Resend accepted it (check the inbox and spam). Any problem is shown in plain words, for example "the domain is not verified".
+
+**4. Turn magic links on, in two steps.** The setting is `PUBBANK_LOGIN`:
+
+| Value | What people see |
+|---|---|
+| `password` (the default; also used when the variable is missing) | Email + password, exactly as before. |
+| `both` | "Email me a sign-in link", with "Use a password instead" underneath. Start here. |
+| `link` | Emailed link only; no passwords. |
+
+Set `both` first, sign in once by link yourself, and ask one person to try it. Move to `link` only when you are comfortable. Changing the variable redeploys the site (which stops any running import, so wait for imports to finish).
+
+**How the link works.** The person enters their email; the reply is the same whether or not an account exists. The emailed link works once and expires in 15 minutes. Opening it shows a **Sign in** button (it never signs in by itself, because email systems pre-open links to scan them). Each address can request 3 links an hour. Invitations in `link` mode ask for a name only.
+
+**If email stops working (read this before switching to `link`):**
+- An **administrator** can make a sign-in link by hand on the People page (**Sign-in link**) and send it any way they like.
+- The **owner** can use the page `/recover` on the site: enter the owner's email and the `PUBBANK_SETUP_CODE`. Every attempt is recorded, and only the owner account can sign in there.
+- The **host script** `scripts/make_reset_link.py` (see *If you are locked out* below) still works for any account; in `link` mode its link signs the person in.
+- Switching `PUBBANK_LOGIN` back to `both` or `password` restores passwords for accounts that have one (accounts created in `link` mode have none until they set one in `both` mode, on the Account page).
+
+## Optional (older method): "Forgot your password?" by email
+
+*This older method uses ordinary SMTP, which Railway's Hobby plan blocks. Prefer Resend above.*
 
 **Railway note (checked October 2026):** Railway's Hobby plan blocks outgoing email over the standard ports (25, 465, 587), according to Railway staff replies in their support forum. On Hobby, do NOT set the variables below: the "Email me a reset link" button would appear but emails would silently fail (connections time out; only the logs show it). Pro reportedly allows it after a redeploy. A way to send through a web-based email service, which works on any plan, is planned. Until then, on Hobby, leave these unset and people ask an administrator for a reset link (People page).
 
@@ -114,3 +152,14 @@ Importing a list of PubMed IDs (or a reference-manager export) contacts NCBI's f
 | `NCBI_API_KEY` | Optional and free (create it in your NCBI account settings). It makes large imports about three times faster. |
 
 After an import, the new papers are cut into passages and prepared for search automatically, in the same step, using the search model that is part of the app image. If that step is ever interrupted, the Publication Bank page and the workspace show a "Not yet searchable" notice with a "Prepare for search" button.
+
+## If you are locked out (forgotten password, including the owner's)
+
+An administrator can make a reset link for a member on the People page, but nobody can reset an **owner** from the website, and emailed reset needs an email service. So the host operator has a script that works for any account:
+
+1. In Railway open the **Postgres** service, then **Variables**, and copy `DATABASE_PUBLIC_URL` (the public address, not the internal one).
+2. In your project folder run `.venv/Scripts/python.exe scripts/make_reset_link.py`. Paste the address at the prompt (add `--hide` to hide it as you paste), then type the account's email. Use `--list` first if you do not remember which email you used.
+3. It prints a path like `/invite/...`. Put your site's address in front of it and open it in a browser. The link works once and expires after 1 hour (change that with `--hours`). Choose a new password and you are signed in.
+4. For the copy on your own laptop, run it with `--local` instead (it uses `DATABASE_URL` from `.env`, so there is no address to paste).
+
+The script never prints the database address, and nothing on the website changes, so nothing needs to be redeployed. If the page says "Too many attempts. Please wait 15 minutes", that counter is kept in the server's memory: waiting 15 minutes or redeploying the service clears it.

@@ -21,6 +21,23 @@ MIN_PASSWORD = 10
 HOSTED = os.environ.get("PUBBANK_HOSTED") == "1"
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 ROLES = ("admin", "member")
+LOGIN_LINK_MINUTES = 15          # an emailed sign-in link works for this long, once
+MANUAL_LINK_HOURS = 24           # a sign-in link an administrator makes by hand and sends
+
+
+def login_mode():
+    """How people sign in on this installation, from the host setting PUBBANK_LOGIN:
+    'password' (the default: email + password, exactly as before), 'both' (an emailed sign-in link, or a password), or 'link' (emailed link only)."""
+    m = (os.environ.get("PUBBANK_LOGIN") or "password").strip().lower()
+    return m if m in ("password", "both", "link") else "password"
+
+
+def passwords_allowed():
+    return login_mode() in ("password", "both")
+
+
+def links_allowed():
+    return login_mode() in ("both", "link")
 
 _N, _R, _P = 2 ** 14, 8, 1
 
@@ -33,6 +50,8 @@ def hash_password(password):
 
 
 def verify_password(password, stored):
+    if not stored:                     # an account that signs in by emailed link has no password
+        return False
     try:
         scheme, n, r, p, salt, h = stored.split("$")
         if scheme != "scrypt":
@@ -96,9 +115,10 @@ def audit(conn, user_id, action, detail=""):
     conn.execute("INSERT INTO audit_log (user_id, action, detail) VALUES (%s, %s, %s)", (user_id, action, detail[:500]))
 
 
-def create_user(conn, email, name, password, is_super=False):
+def create_user(conn, email, name, password=None, is_super=False):
+    """A new account. With no password it signs in by emailed link only."""
     uid = conn.execute("INSERT INTO users (email, name, password_hash, is_super) VALUES (%s, %s, %s, %s) RETURNING id",
-                       (email, name.strip()[:120], hash_password(password), is_super)).fetchone()[0]
+                       (email, name.strip()[:120], hash_password(password) if password else None, is_super)).fetchone()[0]
     return uid
 
 
@@ -114,7 +134,8 @@ def authenticate(conn, email, password, ip=""):
     if _blocked(keys):
         return None, "Too many attempts. Please wait 15 minutes and try again."
     row = conn.execute("SELECT id, password_hash, active FROM users WHERE lower(email) = %s", (email,)).fetchone() if email else None
-    ok = verify_password(password or "", row[1] if row else _DUMMY)
+    has_password = bool(row and row[1])
+    ok = verify_password(password or "", row[1] if has_password else _DUMMY) and has_password     # no password on the account: same timing, never accepted
     if not (row and ok and row[2]):
         _fail(keys)
         return None, "That email and password do not match an active account."
@@ -170,11 +191,14 @@ def visible_folders(user, folders):
 
 
 # ---------------------------------------------------------------------------------------------- invitations and reset links
-def make_link(conn, email, folder, role, created_by, purpose="invite", hours=INVITE_HOURS):
-    """A one-time link token (shown once to whoever made it)."""
+def make_link(conn, email, folder, role, created_by, purpose="invite", hours=INVITE_HOURS, minutes=None):
+    """A one-time link token (shown once to whoever made it). Purposes: 'invite', 'reset' (choose a new password), 'login' (sign in)."""
     token = secrets.token_urlsafe(32)
+    if minutes is not None:
+        hours, minutes = 0, int(minutes)
     conn.execute("""INSERT INTO invites (token_hash, email, org_folder, role, purpose, created_by, expires_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, now() + make_interval(hours => %s))""", (_digest(token), email, folder, role, purpose, created_by, hours))
+                    VALUES (%s, %s, %s, %s, %s, %s, now() + make_interval(hours => %s, mins => %s))""",
+                 (_digest(token), email, folder, role, purpose, created_by, int(hours), int(minutes or 0)))
     return token
 
 
@@ -185,6 +209,12 @@ def get_link(conn, token):
 
 def use_link(conn, token):
     conn.execute("UPDATE invites SET used_at = now() WHERE token_hash = %s", (_digest(token),))
+
+
+def consume_link(conn, token):
+    """Use a link up, atomically: True for exactly one caller, even if two requests arrive at the same moment."""
+    return conn.execute("""UPDATE invites SET used_at = now() WHERE token_hash = %s AND used_at IS NULL AND expires_at > now() RETURNING 1""",
+                        (_digest(token or ""),)).fetchone() is not None
 
 
 def user_by_email(conn, email):

@@ -1,0 +1,16 @@
+{% extends "auth_base.html" %}
+{% block title %}Sign in · BYO Publication Bank{% endblock %}
+{% block auth %}
+{% if not link %}
+<h1>This link is no longer valid</h1>
+<p class="tagline">Sign-in links work once and expire after a short time. Ask for a new one on the sign-in page.</p>
+<a class="btn line" href="/login">Go to sign in</a>
+{% else %}
+<h1>Ready to sign in</h1>
+<p class="tagline">You are signing in as <strong>{{ link.email }}</strong>.</p>
+<form method="post" action="/signin/{{ token }}">
+  <button class="btn" type="submit">Sign in</button>
+</form>
+<p class="after">Pressing the button signs you in on this device. If you did not ask for this, close the page: nothing happens until you press it.</p>
+{% endif %}
+{% endblock %}

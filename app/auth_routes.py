@@ -46,7 +46,7 @@ def register(app, page):
         with connect() as conn:
             if auth.has_users(conn):
                 return RedirectResponse("/login", status_code=303)
-        return page(request, "first_run.html", need_code=bool(os.environ.get("PUBBANK_SETUP_CODE")), problem=_first_run_problem(request), err="", form={})
+        return page(request, "first_run.html", need_code=bool(os.environ.get("PUBBANK_SETUP_CODE")), problem=_first_run_problem(request), err="", form={}, mode=auth.login_mode())
 
     @app.post("/first-run")
     def first_run_post(request: Request, name: str = Form(""), email: str = Form(""), password: str = Form(""), password2: str = Form(""), code: str = Form("")):
@@ -54,7 +54,7 @@ def register(app, page):
         need_code = bool(os.environ.get("PUBBANK_SETUP_CODE"))
 
         def fail(msg, status=400):
-            return page(request, "first_run.html", need_code=need_code, problem=_first_run_problem(request), err=msg, form=form, status_code=status)
+            return page(request, "first_run.html", need_code=need_code, problem=_first_run_problem(request), err=msg, form=form, mode=auth.login_mode(), status_code=status)
         with connect() as conn:
             if auth.has_users(conn):
                 return RedirectResponse("/login", status_code=303)
@@ -66,18 +66,24 @@ def register(app, page):
             e = auth.clean_email(email)
             if not e:
                 return fail("Enter a valid email address.")
-            if password != password2:
-                return fail("The two passwords are different.")
-            bad = auth.password_problem(password, e)
-            if bad:
-                return fail(bad)
-            uid = auth.create_user(conn, e, name, password, is_super=True)
+            if auth.passwords_allowed():
+                if password != password2:
+                    return fail("The two passwords are different.")
+                bad = auth.password_problem(password, e)
+                if bad:
+                    return fail(bad)
+            uid = auth.create_user(conn, e, name, password if auth.passwords_allowed() else None, is_super=True)
             auth.audit(conn, uid, "first_run", "installation owner created")
             token = auth.new_session(conn, uid)
             conn.commit()
         r = RedirectResponse("/", status_code=303)
         _set_cookie(r, token)
         return r
+
+    def _login_page(request, status_code=200, **kw):
+        ctx = dict(next="/", err="", info="", email="", mail_ready=mailer.configured(), mode=auth.login_mode())
+        ctx.update(kw)
+        return page(request, "login.html", status_code=status_code, **ctx)
 
     # ------------------------------------------------------------------------------------------ sign in / out
     @app.get("/login", response_class=HTMLResponse)
@@ -87,22 +93,137 @@ def register(app, page):
                 return RedirectResponse("/first-run", status_code=303)
             if auth.user_for_token(conn, request.cookies.get(auth.COOKIE)):
                 return RedirectResponse(_safe_next(next), status_code=303)
-        return page(request, "login.html", next=_safe_next(next), err="", info=msg, email="", mail_ready=mailer.configured())
+        return _login_page(request, next=_safe_next(next), info=msg)
 
     @app.post("/login")
     def login_post(request: Request, email: str = Form(""), password: str = Form(""), next: str = Form("")):
+        if not auth.passwords_allowed():
+            return _login_page(request, status_code=400, next=_safe_next(next), err="Passwords are turned off here. Use the emailed sign-in link.", email=email)
         with connect() as conn:
             uid, err = auth.authenticate(conn, email, password, _client_ip(request))
             if not uid:
                 auth.audit(conn, None, "login_failed", auth.clean_email(email)[:120])
                 conn.commit()
-                return page(request, "login.html", next=_safe_next(next), err=err, info="", email=email, mail_ready=mailer.configured(), status_code=429 if err.startswith("Too many") else 400)
+                return _login_page(request, status_code=429 if err.startswith("Too many") else 400, next=_safe_next(next), err=err, email=email)
             token = auth.new_session(conn, uid)
             auth.audit(conn, uid, "login")
             conn.commit()
         r = RedirectResponse(_safe_next(next), status_code=303)
         _set_cookie(r, token)
         return r
+
+    # ------------------------------------------------------------------------------------------ sign in with an emailed link (PUBBANK_LOGIN = both or link)
+    LOGIN_MAIL = (
+        "Hello,\n\nHere is your sign-in link for BYO Publication Bank. It works once and expires in {minutes} minutes:\n{url}\n\n"
+        "If you did not ask to sign in, you can ignore this email: nobody can sign in without this link.\n")
+
+    def _login_send(to, url):
+        try:
+            mailer.send(to, "Your BYO Publication Bank sign-in link", LOGIN_MAIL.format(url=url, minutes=auth.LOGIN_LINK_MINUTES))
+        except Exception as e:   # never shown to the visitor (it would reveal which addresses have accounts); the host log shows it
+            print(f"[mail] could not send a sign-in link: {type(e).__name__}: {e}", flush=True)
+
+    def _recent(conn, action, like):
+        return conn.execute("SELECT count(*) FROM audit_log WHERE action = %s AND detail LIKE %s AND at > now() - interval '1 hour'", (action, like)).fetchone()[0]
+
+    @app.post("/login/link", response_class=HTMLResponse)
+    def login_link(request: Request, email: str = Form(""), next: str = Form("")):
+        if not auth.links_allowed():
+            return RedirectResponse("/login", status_code=303)
+        e = auth.clean_email(email)
+        if not e:
+            return _login_page(request, status_code=400, next=_safe_next(next), err="Enter the email address you sign in with.", email=email)
+        ip = _client_ip(request)
+        local_link = ""
+        with connect() as conn:
+            # at most 3 links per address and 10 per visitor per hour, so this cannot be used to flood someone's inbox
+            per_email = _recent(conn, "login_link_requested", f"%|{e}")
+            per_ip = _recent(conn, "login_link_requested", f"{ip}|%")
+            auth.audit(conn, None, "login_link_requested", f"{ip}|{e}"[:300])
+            user = auth.user_by_email(conn, e)
+            if user and user["active"] and per_email < 3 and per_ip < 10:
+                token = auth.make_link(conn, e, None, None, None, purpose="login", minutes=auth.LOGIN_LINK_MINUTES)
+                url = mailer.base_url(request) + "/signin/" + token
+                if mailer.configured():
+                    threading.Thread(target=_login_send, args=(e, url), daemon=True).start()
+                elif not auth.HOSTED and _local_request(request):
+                    local_link = url          # a local laptop copy with no email set up: show the link instead (never done on a hosted site)
+            conn.commit()
+        return page(request, "login_sent.html", email=e, mail_ready=mailer.configured(), local_link=local_link, minutes=auth.LOGIN_LINK_MINUTES)
+
+    @app.get("/signin/{token}", response_class=HTMLResponse)
+    def signin(request: Request, token: str):
+        """Opening the link only SHOWS a button. It never signs anyone in by itself: email systems often open links to scan them."""
+        with connect() as conn:
+            link = auth.get_link(conn, token)
+            user = auth.user_by_email(conn, link["email"]) if link else None
+        if not (auth.links_allowed() and link and link["purpose"] == "login" and user and user["active"]):
+            return page(request, "signin.html", link=None, token="", status_code=410)
+        return page(request, "signin.html", link=link, token=token)
+
+    @app.post("/signin/{token}")
+    def signin_post(request: Request, token: str):
+        with connect() as conn:
+            link = auth.get_link(conn, token)
+            user = auth.user_by_email(conn, link["email"]) if link else None
+            if not (auth.links_allowed() and link and link["purpose"] == "login" and user and user["active"]) or not auth.consume_link(conn, token):
+                return page(request, "signin.html", link=None, token="", status_code=410)
+            session = auth.new_session(conn, user["id"])
+            auth.audit(conn, user["id"], "login_by_link")
+            conn.commit()
+        r = RedirectResponse("/", status_code=303)
+        _set_cookie(r, session)
+        return r
+
+    # ------------------------------------------------------------------------------------------ the owner's way back in when email is not working
+    @app.get("/recover", response_class=HTMLResponse)
+    def recover(request: Request):
+        if not auth.links_allowed():
+            return RedirectResponse("/login", status_code=303)
+        return page(request, "recover.html", err="", email="", has_code=bool(os.environ.get("PUBBANK_SETUP_CODE")))
+
+    @app.post("/recover")
+    def recover_post(request: Request, email: str = Form(""), code: str = Form("")):
+        """The owner enters the host's setup code (a secret only whoever runs the host knows) instead of waiting for an email."""
+        if not auth.links_allowed():
+            return RedirectResponse("/login", status_code=303)
+        want = os.environ.get("PUBBANK_SETUP_CODE", "")
+
+        def fail(msg, status=400):
+            return page(request, "recover.html", err=msg, email=email, has_code=bool(want), status_code=status)
+        if not want:
+            return fail("This installation has no setup code (PUBBANK_SETUP_CODE) in its host settings, so this page cannot be used.", 403)
+        e = auth.clean_email(email)
+        ip = _client_ip(request)
+        with connect() as conn:
+            too_many = _recent(conn, "recover_attempt", f"{ip}|%") >= 5 or _recent(conn, "recover_attempt", f"%|{e}") >= 5
+            auth.audit(conn, None, "recover_attempt", f"{ip}|{e}"[:300])
+            conn.commit()
+            if too_many:
+                return fail("Too many attempts. Please wait an hour and try again.", 429)
+            user = auth.user_by_email(conn, e) if e else None
+            code_ok = secrets.compare_digest(code.strip().encode("utf-8"), want.encode("utf-8"))
+            if not (code_ok and user and user["active"] and user["is_super"]):
+                return fail("That email or setup code is not right.")         # one message for every kind of failure
+            session = auth.new_session(conn, user["id"])
+            auth.audit(conn, user["id"], "recover_signin", "owner signed in with the setup code")
+            conn.commit()
+        r = RedirectResponse("/", status_code=303)
+        _set_cookie(r, session)
+        return r
+
+    @app.post("/admin/email-test")
+    def email_test(request: Request):
+        """Owner only: send one test email to the signed-in owner, so the real email setup can be checked from the live site."""
+        user = request.state.user
+        if not mailer.configured():
+            return RedirectResponse("/?err=" + "Email+is+not+set+up+on+this+installation+yet.", status_code=303)
+        try:
+            mailer.send(user["email"], "Test email from BYO Publication Bank", "This is a test. If you are reading it, email sending works on this installation.\n")
+        except Exception as e:
+            text = str(e).replace("&", "and").replace("#", "").replace("+", " ")[:300]
+            return RedirectResponse("/?err=" + "The+test+email+could+not+be+sent:+" + text.replace(" ", "+"), status_code=303)
+        return RedirectResponse(f"/?msg=Test+email+sent+to+{user['email']}+(sent+with+{mailer.provider()}).+Check+the+inbox+and+the+spam+folder.", status_code=303)
 
     # ------------------------------------------------------------------------------------------ "Forgot your password?" by email
     FORGOT_MAIL = (
@@ -118,13 +239,13 @@ def register(app, page):
 
     @app.get("/forgot", response_class=HTMLResponse)
     def forgot(request: Request):
-        if not mailer.configured():
+        if not mailer.configured() or not auth.passwords_allowed():
             return RedirectResponse("/login", status_code=303)
         return page(request, "forgot.html", sent=False, err="", email="")
 
     @app.post("/forgot", response_class=HTMLResponse)
     def forgot_post(request: Request, email: str = Form("")):
-        if not mailer.configured():
+        if not mailer.configured() or not auth.passwords_allowed():
             return RedirectResponse("/login", status_code=303)
         e = auth.clean_email(email)
         if not e:
@@ -158,14 +279,18 @@ def register(app, page):
     # ------------------------------------------------------------------------------------------ own account
     @app.get("/account", response_class=HTMLResponse)
     def account(request: Request, msg: str = "", err: str = ""):
-        return page(request, "account.html", flash=msg or err, flash_error=bool(err))
+        with connect() as conn:
+            has_password = bool(conn.execute("SELECT password_hash FROM users WHERE id = %s", (request.state.user["id"],)).fetchone()[0])
+        return page(request, "account.html", flash=msg or err, flash_error=bool(err), has_password=has_password, mode=auth.login_mode())
 
     @app.post("/account/password")
     def account_password(request: Request, current: str = Form(""), password: str = Form(""), password2: str = Form("")):
         user = request.state.user
+        if not auth.passwords_allowed():
+            return RedirectResponse("/account?err=Passwords+are+turned+off+on+this+installation.", status_code=303)
         with connect() as conn:
             row = conn.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],)).fetchone()
-            if not auth.verify_password(current, row[0]):
+            if row[0] and not auth.verify_password(current, row[0]):          # an account with no password yet can set one without a current password
                 return RedirectResponse("/account?err=The+current+password+is+not+right.", status_code=303)
             if password != password2:
                 return RedirectResponse("/account?err=The+two+new+passwords+are+different.", status_code=303)
@@ -184,11 +309,13 @@ def register(app, page):
     def _link_page(request, token, err="", status=200):
         with connect() as conn:
             link = auth.get_link(conn, token)
+            if link and link["purpose"] not in ("invite", "reset"):
+                link = None                   # a sign-in link opens at /signin, never here
             existing = auth.user_by_email(conn, link["email"]) if link else None
             user = auth.user_for_token(conn, request.cookies.get(auth.COOKIE))
         org_name = orgs.load(link["folder"])["name"] if link and link["folder"] and orgs.valid_folder(link["folder"]) else ""
         return page(request, "invite.html", link=link, existing=existing, org_name=org_name, token=token, err=err, signed_in=user,
-                    status_code=status)
+                    mode=auth.login_mode(), status_code=status)
 
     @app.get("/invite/{token}", response_class=HTMLResponse)
     def invite(request: Request, token: str):
@@ -198,28 +325,36 @@ def register(app, page):
     def invite_post(request: Request, token: str, name: str = Form(""), password: str = Form(""), password2: str = Form("")):
         with connect() as conn:
             link = auth.get_link(conn, token)
-            if not link:
+            if not link or link["purpose"] not in ("invite", "reset"):
                 return _link_page(request, token, status=410)
+            no_password = not auth.passwords_allowed()          # links are the only way in: nobody chooses a password
             existing = auth.user_by_email(conn, link["email"])
             if existing and link["purpose"] != "reset":
                 return _link_page(request, token, "This email already has an account. Sign in to accept the invitation.", 400)
             if link["purpose"] == "reset" and not existing:
                 return _link_page(request, token, "There is no account for this email.", 400)
-            if password != password2:
-                return _link_page(request, token, "The two passwords are different.", 400)
-            bad = auth.password_problem(password, link["email"])
-            if bad:
-                return _link_page(request, token, bad, 400)
+            if not no_password:
+                if password != password2:
+                    return _link_page(request, token, "The two passwords are different.", 400)
+                bad = auth.password_problem(password, link["email"])
+                if bad:
+                    return _link_page(request, token, bad, 400)
+            if existing and not existing["active"]:
+                return _link_page(request, token, "This account is not active.", 400)
+            if not auth.consume_link(conn, token):
+                return _link_page(request, token, status=410)
             if existing:
                 uid = existing["id"]
-                auth.set_password(conn, uid, password)
-                auth.audit(conn, uid, "password_reset_by_link")
+                if no_password:
+                    auth.audit(conn, uid, "login_by_reset_link")
+                else:
+                    auth.set_password(conn, uid, password)
+                    auth.audit(conn, uid, "password_reset_by_link")
             else:
-                uid = auth.create_user(conn, link["email"], name, password)
+                uid = auth.create_user(conn, link["email"], name, None if no_password else password)
                 auth.audit(conn, uid, "account_created_by_invite", link["folder"] or "")
             if link["folder"] and link["role"] in auth.ROLES and orgs.valid_folder(link["folder"]):
                 auth.add_member(conn, uid, link["folder"], link["role"])
-            auth.use_link(conn, token)
             session = auth.new_session(conn, uid)
             conn.commit()
         r = RedirectResponse("/", status_code=303)
@@ -286,6 +421,24 @@ def register(app, page):
             conn.commit()
         url = str(request.base_url).rstrip("/") + "/invite/" + token
         return _people_page(request, folder, link=url, link_note=f"Password reset link for {target[0]}. It works once and expires in 24 hours.")
+
+    @app.post("/org/{folder}/people/signin-link")
+    def people_signin_link(request: Request, folder: str, user_id: int = Form(...)):
+        """A sign-in link an administrator sends by hand: the way in for someone whose email is not arriving (same limits as a reset link)."""
+        if not orgs.valid_folder(folder):
+            return HTMLResponse("Unknown organization", status_code=404)
+        if not auth.links_allowed():
+            return _people_page(request, folder, err="Sign-in links are not turned on for this installation.", status=400)
+        with connect() as conn:
+            admin = request.state.user
+            target = conn.execute("""SELECT u.email FROM users u JOIN memberships m ON m.user_id = u.id WHERE u.id = %s AND m.org_folder = %s""", (user_id, folder)).fetchone()
+            if not target or not auth.can_reset(conn, admin, user_id):
+                return _people_page(request, folder, err="A sign-in link cannot be made for this person (they may also belong to another organization).", status=400)
+            token = auth.make_link(conn, target[0], None, None, admin["id"], purpose="login", hours=auth.MANUAL_LINK_HOURS)
+            auth.audit(conn, admin["id"], "signin_link_created", target[0])
+            conn.commit()
+        url = str(request.base_url).rstrip("/") + "/signin/" + token
+        return _people_page(request, folder, link=url, link_note=f"Sign-in link for {target[0]}. It works once and expires in {auth.MANUAL_LINK_HOURS} hours.")
 
     @app.post("/org/{folder}/people/remove")
     def people_remove(request: Request, folder: str, user_id: int = Form(...)):

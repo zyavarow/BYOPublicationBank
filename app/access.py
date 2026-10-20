@@ -6,7 +6,7 @@ Anything not listed here needs the installation owner, so a forgotten new page i
 """
 import re
 
-PUBLIC_PATHS = {"/login", "/logout", "/first-run", "/forgot", "/healthz"}
+PUBLIC_PATHS = {"/login", "/login/link", "/logout", "/first-run", "/forgot", "/recover", "/healthz"}
 ORG = re.compile(r"^/org/([^/]+)(/.*)?$")
 MEMBER_PART = re.compile(r"^/(workspace(/.*)?|logo|bank/jobs/[^/]+)$")      # bank/jobs/<id>: progress of a question; the route refuses other kinds of job for members
 ANY_PATHS = {"/", "/account", "/account/password"}
@@ -15,7 +15,7 @@ ADMIN_ANY_PATHS = {"/logo-colors", "/guide-colors", "/pull-colors"}
 
 def classify(path):
     """(level, organization folder or None)."""
-    if path in PUBLIC_PATHS or path.startswith("/static/") or path.startswith("/invite/"):
+    if path in PUBLIC_PATHS or path.startswith("/static/") or path.startswith("/invite/") or path.startswith("/signin/"):
         return "public", None
     m = ORG.match(path)
     if m:

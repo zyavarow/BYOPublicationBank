@@ -1,0 +1,15 @@
+{% extends "auth_base.html" %}
+{% block title %}Check your email · BYO Publication Bank{% endblock %}
+{% block auth %}
+<h1>Check your email</h1>
+{% if local_link %}
+<p class="tagline">This is a local copy with no email set up, so here is the sign-in link for <strong>{{ email }}</strong> directly. It works once and expires in {{ minutes }} minutes.</p>
+<a class="btn" href="{{ local_link }}">Open the sign-in link</a>
+{% elif mail_ready %}
+<p class="tagline">If an account exists for <strong>{{ email }}</strong>, we have emailed it a link to sign in. The link works once and expires in {{ minutes }} minutes.</p>
+<p class="after"><strong>Nothing arrived?</strong> Check your spam folder, wait a minute, then try again. You can also ask an administrator of your organization for a sign-in link.</p>
+{% else %}
+<p class="tagline">This site cannot send email yet. Please ask an administrator of your organization to send you a sign-in link.</p>
+{% endif %}
+<p class="after"><a href="/login">← Back to sign in</a></p>
+{% endblock %}

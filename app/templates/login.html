@@ -5,6 +5,17 @@
 <p class="tagline">Your organization's library of research papers. Ask questions in plain language and see every answer tied to its source.</p>
 {% if info %}<div class="flash" role="status">{{ info }}</div>{% endif %}
 {% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+
+{% if mode != 'password' %}
+<form method="post" action="/login/link">
+  <input type="hidden" name="next" value="{{ next }}">
+  <div><label class="lab" for="email">Email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
+  <button class="btn" type="submit">Email me a sign-in link</button>
+</form>
+<p class="after">{% if mode == 'link' %}<strong>No password needed.</strong> {% endif %}We email you a link that signs you in. It works once and expires in a few minutes. Not arriving? Check your spam folder, or ask an administrator of your organization for a sign-in link.</p>
+{% endif %}
+
+{% if mode == 'password' %}
 <form method="post" action="/login">
   <input type="hidden" name="next" value="{{ next }}">
   <div><label class="lab" for="email">Email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
@@ -13,4 +24,18 @@
 </form>
 {% if mail_ready %}<p class="after"><strong>Forgot your password?</strong> <a href="/forgot">Email me a reset link</a>.</p>
 {% else %}<p class="after"><strong>Forgot your password?</strong> Ask an administrator of your organization for a reset link. It opens a page where you choose a new password.</p>{% endif %}
+{% elif mode == 'both' %}
+<details class="altsign">
+  <summary>Use a password instead</summary>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <div><label class="lab" for="email2">Email</label><input type="email" id="email2" name="email" value="{{ email }}" autocomplete="username" required></div>
+    <div><label class="lab" for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password" required></div>
+    <button class="btn line" type="submit">Sign in with password</button>
+  </form>
+  {% if mail_ready %}<p class="after"><a href="/forgot">Forgot your password?</a></p>{% endif %}
+</details>
+{% endif %}
+
+{% if mode != 'password' %}<p class="after small"><a href="/recover">Installation owner? Sign in with the setup code</a></p>{% endif %}
 {% endblock %}

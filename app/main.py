@@ -23,7 +23,7 @@ from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from app import access, auth_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, apikey, ask as asker, auth, bundle, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from pubbank import adminlog, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 APP = Path(__file__).resolve().parent
@@ -38,6 +38,8 @@ def _static_v(path):
 
 templates.env.globals["static_v"] = _static_v
 templates.env.globals["can_admin"] = lambda user, folder: auth.allows(user, folder, "admin")
+templates.env.globals["login_mode"] = auth.login_mode            # password, both or link: templates show the matching sign-in controls
+templates.env.globals["mail_provider"] = mailer.provider          # resend, smtp or None
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
 
@@ -176,7 +178,7 @@ auth_routes.register(app, _page)
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request, msg: str = ""):
+def home(request: Request, msg: str = "", err: str = ""):
     cards = []
     user = request.state.user
     with connect() as conn:
@@ -189,7 +191,7 @@ def home(request: Request, msg: str = ""):
             cards.append(cfg)
     if len(cards) == 1 and cards[0]["role"] == "member":
         return RedirectResponse(f"/org/{cards[0]['folder']}/workspace", status_code=303)      # members have nowhere else to go
-    return _page(request, "home.html", orgs=cards, flash=msg)
+    return _page(request, "home.html", orgs=cards, flash=msg or err, flash_error=bool(err))
 
 
 @app.get("/admin/schema-registry.xlsx")

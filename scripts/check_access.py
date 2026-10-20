@@ -15,7 +15,7 @@ import requests
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-PUBLIC = {"/login", "/logout", "/first-run", "/healthz"}
+PUBLIC = {"/login", "/login/link", "/logout", "/first-run", "/forgot", "/recover", "/healthz"}
 
 
 def routes():
@@ -55,7 +55,7 @@ def main():
 
     for method, raw in routes():
         path = fill(raw, a.folder)
-        public = raw in PUBLIC or raw.startswith("/invite/") or raw.startswith("/static")
+        public = raw in PUBLIC or raw.startswith("/invite/") or raw.startswith("/signin/") or raw.startswith("/static")
         r = call(method, path)
         n += 1
         ok = (r.status_code in (200, 303, 307, 400, 404, 405, 410, 422, 429) if public else

@@ -39,7 +39,6 @@ def _static_v(path):
 templates.env.globals["static_v"] = _static_v
 templates.env.globals["can_admin"] = lambda user, folder: auth.allows(user, folder, "admin")
 templates.env.globals["login_mode"] = auth.login_mode            # password, both or link: templates show the matching sign-in controls
-templates.env.globals["mail_provider"] = mailer.provider          # resend, smtp or None
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
 

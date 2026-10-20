@@ -104,9 +104,7 @@ The app can email people a one-time sign-in link, so nobody needs a password. Em
 | `PUBBANK_BASE_URL` | the site's public address, for example `https://your-site.up.railway.app` (used inside emailed links) |
 | `PUBBANK_SETUP_CODE` | already set for first run; also the owner's way in if email breaks (see below) |
 
-**3. Test it.** Sign in as the owner, open **Home**, and press **Send a test email to me** in the *Email* section. A success message means Resend accepted it (check the inbox and spam). Any problem is shown in plain words, for example "the domain is not verified".
-
-**4. Turn magic links on, in two steps.** The setting is `PUBBANK_LOGIN`:
+**3. Turn magic links on and test them.** The setting is `PUBBANK_LOGIN`:
 
 | Value | What people see |
 |---|---|
@@ -114,7 +112,7 @@ The app can email people a one-time sign-in link, so nobody needs a password. Em
 | `both` | "Email me a sign-in link", with "Use a password instead" underneath. Start here. |
 | `link` | Emailed link only; no passwords. |
 
-Set `both` first, sign in once by link yourself, and ask one person to try it. Move to `link` only when you are comfortable. Changing the variable redeploys the site (which stops any running import, so wait for imports to finish).
+Set `both` first. Passwords keep working in this mode, so you cannot lock yourself out while testing. Then sign out, press **Email me a sign-in link** with your own address, and click the link in the email (that also proves `PUBBANK_BASE_URL` is right). If nothing arrives within a minute, check your spam folder; if it is not there, open the Railway logs (app service, Deployments, View logs) and search for `[mail]`: a failed send is logged there with the reason Resend gave, for example "the domain is not verified". People never see that reason (the page gives the same answer for every address). Ask one other person to try it too, and move to `link` only when you are comfortable. Changing the variable redeploys the site (which stops any running import, so wait for imports to finish).
 
 **How the link works.** The person enters their email; the reply is the same whether or not an account exists. The emailed link works once and expires in 15 minutes. Opening it shows a **Sign in** button (it never signs in by itself, because email systems pre-open links to scan them). Each address can request 3 links an hour. Invitations in `link` mode ask for a name only.
 

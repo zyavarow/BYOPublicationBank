@@ -212,19 +212,6 @@ def register(app, page):
         _set_cookie(r, session)
         return r
 
-    @app.post("/admin/email-test")
-    def email_test(request: Request):
-        """Owner only: send one test email to the signed-in owner, so the real email setup can be checked from the live site."""
-        user = request.state.user
-        if not mailer.configured():
-            return RedirectResponse("/?err=" + "Email+is+not+set+up+on+this+installation+yet.", status_code=303)
-        try:
-            mailer.send(user["email"], "Test email from BYO Publication Bank", "This is a test. If you are reading it, email sending works on this installation.\n")
-        except Exception as e:
-            text = str(e).replace("&", "and").replace("#", "").replace("+", " ")[:300]
-            return RedirectResponse("/?err=" + "The+test+email+could+not+be+sent:+" + text.replace(" ", "+"), status_code=303)
-        return RedirectResponse(f"/?msg=Test+email+sent+to+{user['email']}+(sent+with+{mailer.provider()}).+Check+the+inbox+and+the+spam+folder.", status_code=303)
-
     # ------------------------------------------------------------------------------------------ "Forgot your password?" by email
     FORGOT_MAIL = (
         "Hello,\n\nSomeone (hopefully you) asked to reset the password for this address on BYO Publication Bank.\n\n"

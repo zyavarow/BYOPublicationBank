@@ -30,12 +30,6 @@
   </form>
 </section>
 <section class="sec">
-  <h2>Email</h2>
-  {% if mail_provider() %}<p class="secnote">Email sending is set up (using <strong>{{ mail_provider() }}</strong>). Sign-in mode: <strong>{{ {'password': 'password only', 'both': 'emailed link or password', 'link': 'emailed link only'}[login_mode()] }}</strong>.</p>
-  <form method="post" action="/admin/email-test" class="inline"><button class="btn small line" type="submit">Send a test email to me ↗</button></form>
-  {% else %}<p class="secnote">Email sending is not set up on this installation. Sign-in mode: <strong>{{ {'password': 'password only', 'both': 'emailed link or password', 'link': 'emailed link only'}[login_mode()] }}</strong>. See the hosting guide to connect email.</p>{% endif %}
-</section>
-<section class="sec">
   <h2>Back end</h2>
   <p class="secnote">An Excel workbook of the standard categories, plus what each organization has customized: options added or removed, reworded instructions, custom categories, removed categories and gene lists.</p>
   <a class="btn small line" href="/admin/schema-registry.xlsx">Download the schema registry (Excel) ↓</a>

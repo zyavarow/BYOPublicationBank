@@ -32,6 +32,17 @@ def login_mode():
     return m if m in ("password", "both", "link") else "password"
 
 
+def link_limits():
+    """(per email address, per visitor) sign-in links allowed per rolling hour. The host can change them with PUBBANK_LINKS_PER_ADDRESS and
+    PUBBANK_LINKS_PER_VISITOR; the defaults are generous enough for real use and still stop anyone flooding an inbox."""
+    def number(name, default):
+        try:
+            return max(1, int(os.environ.get(name, "")))
+        except ValueError:
+            return default
+    return number("PUBBANK_LINKS_PER_ADDRESS", 10), number("PUBBANK_LINKS_PER_VISITOR", 30)
+
+
 def passwords_allowed():
     return login_mode() in ("password", "both")
 

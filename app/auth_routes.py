@@ -136,12 +136,20 @@ def register(app, page):
         ip = _client_ip(request)
         local_link = ""
         with connect() as conn:
-            # at most 3 links per address and 10 per visitor per hour, so this cannot be used to flood someone's inbox
+            # a limit per address and per visitor per hour (see auth.link_limits), so this cannot be used to flood someone's inbox
+            max_email, max_ip = auth.link_limits()
             per_email = _recent(conn, "login_link_requested", f"%|{e}")
             per_ip = _recent(conn, "login_link_requested", f"{ip}|%")
             auth.audit(conn, None, "login_link_requested", f"{ip}|{e}"[:300])
             user = auth.user_by_email(conn, e)
-            if user and user["active"] and per_email < 3 and per_ip < 10:
+            # the visitor sees the same page whatever happens; the host log says which reason applied (never the address)
+            if not user or not user["active"]:
+                print("[signin] link not sent: no active account for that address", flush=True)
+            elif per_email >= max_email:
+                print(f"[signin] link not sent: this address already asked {per_email} times in the last hour (limit {max_email})", flush=True)
+            elif per_ip >= max_ip:
+                print(f"[signin] link not sent: this visitor already asked {per_ip} times in the last hour (limit {max_ip})", flush=True)
+            if user and user["active"] and per_email < max_email and per_ip < max_ip:
                 token = auth.make_link(conn, e, None, None, None, purpose="login", minutes=auth.LOGIN_LINK_MINUTES)
                 url = mailer.base_url(request) + "/signin/" + token
                 if mailer.configured():

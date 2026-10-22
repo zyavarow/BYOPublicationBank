@@ -37,8 +37,7 @@ def suggest_terms(folder):
     t = load_template(overlay)
     terms = []
     for g in t.get("genes", []):
-        if re.match(r"(?i)^(a different|not |unrelated)", g.get("notes", "")) or "not gene3" in g.get("notes", "").lower() \
-                or "not exd" in g.get("notes", "").lower():
+        if re.search(r"(?i)(^|[;.,]\s*)(a different|not |unrelated)", g.get("notes", "")):    # e.g. "A different enzyme; not <this disease>."
             continue
         terms += [g["symbol"]] + list(g.get("aliases", []))
     disease = (t.get("context") or {}).get("disease", "")

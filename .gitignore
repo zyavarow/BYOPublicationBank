@@ -24,3 +24,10 @@ orgs/*/proposal.json
 # An organization's own Anthropic key
 orgs/*/api_key.txt
 orgs/*/api_key.tmp
+
+# Organization-specific material stays local (each organization's settings, schemas, interviews, letters, test questions)
+orgs/
+docs/organization_update_*
+docs/gold_questions_*
+docs/extraction_schema_*.xlsx
+docs/HANDOFF_FOR_NEW_CHAT.md

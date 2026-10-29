@@ -8,6 +8,7 @@
 {% block head %}{% endblock %}
 </head>
 <body style="{{ brand_vars(org if org is defined else None) }}">
+{% if test_env %}<div class="testbar" role="note">TEST ENVIRONMENT &mdash; not the live site. Nothing here is real.</div>{% endif %}
 <div class="brandbar"></div>
 {% block topbar %}<header class="topbar">
   <a class="brand" href="/">BYO Publication Bank{% if org is defined and org.name %} <span class="sub">setup for {{ org.name }}</span>{% endif %}</a>

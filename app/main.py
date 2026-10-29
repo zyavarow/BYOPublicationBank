@@ -1,4 +1,5 @@
 """Research Portal Setup Kit: local web app (setup wizard for an organization's portal). Runs on this computer only (127.0.0.1)."""
+import logging
 import os
 import re
 import threading
@@ -26,6 +27,20 @@ from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
 from pubbank import adminlog, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
+LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
+
+
+class _HideLinkKeys(logging.Filter):
+    """The web server's request log would otherwise keep the secret part of every invitation, reset and sign-in link."""
+    def filter(self, record):
+        a = record.args
+        if isinstance(a, tuple) and len(a) >= 3 and isinstance(a[2], str):
+            record.args = (*a[:2], LINK_KEY.sub(r"\1<hidden>", a[2]), *a[3:])
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_HideLinkKeys())
+
 APP = Path(__file__).resolve().parent
 app = FastAPI(title="Research Portal Setup Kit", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=APP / "static"), name="static")
@@ -39,6 +54,7 @@ def _static_v(path):
 templates.env.globals["static_v"] = _static_v
 templates.env.globals["can_admin"] = lambda user, folder: auth.allows(user, folder, "admin")
 templates.env.globals["login_mode"] = auth.login_mode            # password, both or link: templates show the matching sign-in controls
+templates.env.globals["test_env"] = os.environ.get("PUBBANK_ENV", "").strip().lower() == "test"      # shows the TEST ENVIRONMENT bar on every page
 templates.env.globals["money"] = lambda v: "under 1 cent" if v < 0.01 else f"${v:.2f}"
 
 

@@ -94,6 +94,10 @@ def _send_smtp(to, subject, text):
 
 def send(to, subject, text, sender_name=None):
     """Send one plain-text email. Raises on failure (callers log it and show nothing that reveals whether an address has an account)."""
+    if os.environ.get("PUBBANK_ENV", "").strip().lower() == "test":       # the Test site never emails real users
+        allowed = {a.strip().lower() for a in os.environ.get("PUBBANK_TEST_EMAIL_ALLOW", "").replace(";", ",").split(",") if a.strip()}
+        if to.strip().lower() not in allowed:
+            raise RuntimeError("Test environment: that address is not in PUBBANK_TEST_EMAIL_ALLOW, so nothing was sent.")
     which = provider()
     if which == "resend":
         _send_resend(to, subject, text)

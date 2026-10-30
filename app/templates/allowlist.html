@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Approved addresses · BYO Publication Bank{% endblock %}
+{% block body %}
+<div class="eyebrow link step-eyebrow">Beta access</div>
+<h1>Who may create a publication bank</h1>
+<p class="lede">Only the addresses below can create an account on the <a href="/start">Create a publication bank</a> page, create a bank, or be invited as an administrator by someone other than you. Members need no approval: they join only through an invitation from an administrator. You can always do all of this yourself.</p>
+
+<section class="sec">
+  <h2>Add addresses</h2>
+  <form method="post" action="/admin/allowlist/add" class="web-row end">
+    <div class="g2"><label class="lab" for="emails">One or many, separated by commas, spaces or new lines</label><textarea id="emails" name="emails" rows="3" required></textarea></div>
+    <button class="btn small" type="submit">Add to the list</button>
+  </form>
+</section>
+
+<section class="sec">
+  <div class="bankhead"><h2>Requests for access</h2><span class="summary"><strong>{{ requests|length }}</strong> waiting</span></div>
+  {% if not requests %}<p class="plain">No requests waiting. People who are not approved can send one from the Create a publication bank page.</p>{% endif %}
+  <div class="tablewrap"><table class="banktable">
+    {% for r in requests %}
+    <tr><td class="t"><strong>{{ r.name or r.email }}</strong><div class="n">{{ r.email }} · {{ r.at.strftime('%b %d, %Y') }}</div>{% if r.note %}<div class="n">{{ r.note }}</div>{% endif %}</td>
+      <td class="ra">
+        <form method="post" action="/admin/allowlist/request" class="inline"><input type="hidden" name="request_id" value="{{ r.id }}"><input type="hidden" name="action" value="approve"><button class="linkbtn" type="submit">Approve</button></form>
+        <form method="post" action="/admin/allowlist/request" class="inline"><input type="hidden" name="request_id" value="{{ r.id }}"><input type="hidden" name="action" value="dismiss"><button class="linkbtn danger" type="submit">Dismiss</button></form></td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section class="sec">
+  <div class="bankhead"><h2>Approved addresses</h2><span class="summary"><strong>{{ approved|length }}</strong> on the list</span></div>
+  {% if not approved %}<p class="plain">The list is empty. Existing administrators are added automatically the first time this version starts.</p>{% endif %}
+  <div class="tablewrap"><table class="banktable">
+    {% for a in approved %}
+    <tr><td class="t"><strong>{{ a.email }}</strong></td><td class="j">{{ a.source }} · {{ a.added_at.strftime('%b %d, %Y') }}</td>
+      <td class="ra"><form method="post" action="/admin/allowlist/remove" class="inline" onsubmit="return confirm('Remove {{ a.email|e }} from the list? They keep any bank they already have, but cannot create new ones.')"><input type="hidden" name="email" value="{{ a.email }}"><button class="linkbtn danger" type="submit">Remove</button></form></td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section class="sec last">
+  <div class="bankhead"><h2>Blocked attempts</h2><span class="summary">latest {{ blocked|length }}</span></div>
+  {% if not blocked %}<p class="plain">Nothing has been blocked yet.</p>{% endif %}
+  <div class="tablewrap"><table class="banktable">
+    {% for b in blocked %}
+    <tr><td class="t"><strong>{{ b.email }}</strong></td><td class="j">{{ b.what }}</td><td class="j">{{ b.at.strftime('%b %d, %Y %H:%M') }} UTC</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endblock %}

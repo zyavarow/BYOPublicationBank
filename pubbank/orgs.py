@@ -17,6 +17,7 @@ ORGS_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULTS = {
     "name": "", "description": "", "website": "", "topic_terms": "", "answer_format": "plain", "search_depth": "standard", "allow_depth_choice": "yes", "daily_cap": "5.00", "schema_approved": "",
     "primary": "#2B6E5E", "accent": "#B5592E", "logo": "", "brand_guide": "", "db_slug": "",
+    "own_key_required": "",      # "yes": this organization must enter its own Anthropic key and never falls back to the host's shared key
 }
 HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 FOLDER = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
@@ -63,14 +64,20 @@ def initials(name):
     return (words[0][0] + words[1][0]).upper()
 
 
-def create(name, conn):
-    """Create a new organization: a folder, a config file and a database row. Returns the folder name."""
+def create(name, conn, by_owner=True):
+    """Create a new organization: a folder, a config file and a database row. Returns the folder name.
+    The installation owner may reuse the name of an existing bank (that reconnects the folder to its data). Anyone else always gets a bank of
+    their own, so a name that is already taken gets a number added, and the bank must use its own Anthropic key rather than the host's shared one."""
     base = slugify(name)
     folder, n = base, 2
     while (ORGS_DIR / folder).exists():
         folder, n = f"{base}-{n}", n + 1
     (ORGS_DIR / folder).mkdir(parents=True)
-    cfg = dict(DEFAULTS, name=name.strip(), db_slug=name.strip())
+    slug, k = name.strip(), 2
+    if not by_owner:
+        while conn.execute("SELECT 1 FROM organizations WHERE slug = %s", (slug,)).fetchone():
+            slug, k = f"{name.strip()} ({k})", k + 1
+    cfg = dict(DEFAULTS, name=name.strip(), db_slug=slug, own_key_required="" if by_owner else "yes")
     conn.execute("INSERT INTO organizations (slug, name) VALUES (%s, %s) ON CONFLICT (slug) DO NOTHING",
                  (cfg["db_slug"], cfg["name"]))
     conn.commit()

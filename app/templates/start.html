@@ -1,0 +1,47 @@
+{% extends "auth_base.html" %}
+{% block title %}Create a publication bank · BYO Publication Bank{% endblock %}
+{% block auth %}
+{% if state == 'unavailable' %}
+<h1>Not available yet</h1>
+<p class="tagline">This site cannot send email yet, so new accounts cannot be created here.</p>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+
+{% elif state == 'sent' %}
+<h1>Check your email</h1>
+{% if local_link %}
+<p class="tagline">This is a local copy with no email set up, so here is the link for <strong>{{ email }}</strong> directly. It works once and expires in {{ minutes }} minutes.</p>
+<a class="btn" href="{{ local_link }}">Open the link</a>
+{% else %}
+<p class="tagline">If <strong>{{ email }}</strong> is approved, we have emailed it a link to continue. The link works once and expires in {{ minutes }} minutes.</p>
+<p class="after"><strong>Nothing arrived?</strong> Check your spam folder, wait a minute, then try again.</p>
+{% endif %}
+<p class="after"><a href="/login">← Back to sign in</a></p>
+
+{% elif state == 'requested' %}
+<h1>Request sent</h1>
+<p class="tagline">Thank you. The administrator will look at your request. If you are approved, come back to this page and enter <strong>{{ email }}</strong> to continue.</p>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+
+{% elif state == 'blocked' %}
+<h1>Invite-only for now</h1>
+<p class="tagline">BYO Publication Bank is invite-only during the beta. You can ask for access below and the administrator will get back to you.</p>
+{% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+<form method="post" action="/start/request">
+  <div><label class="lab" for="rname">Your name</label><input type="text" id="rname" name="name" value="{{ rname }}" maxlength="120" autocomplete="name"></div>
+  <div><label class="lab" for="remail">Email</label><input type="email" id="remail" name="email" value="{{ email }}" autocomplete="email" required></div>
+  <div><label class="lab" for="rnote">Tell us about your organization</label><textarea id="rnote" name="note" rows="4" maxlength="1000">{{ note }}</textarea></div>
+  <button class="btn" type="submit">Request access</button>
+</form>
+<p class="after"><a href="/login">← Back to sign in</a></p>
+
+{% else %}
+<h1>Create a publication bank</h1>
+<p class="tagline">Build a searchable library of your organization's research papers. During the beta this is open to approved addresses. Enter yours and we will email you a link.</p>
+{% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+<form method="post" action="/start">
+  <div><label class="lab" for="email">Email</label><input type="email" id="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></div>
+  <button class="btn" type="submit">Email me a link</button>
+</form>
+<p class="after">Already have an account? <a href="/login">Sign in</a>.</p>
+{% endif %}
+{% endblock %}

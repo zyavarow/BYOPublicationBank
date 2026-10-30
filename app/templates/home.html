@@ -3,7 +3,7 @@
 {% block body %}
 <div class="eyebrow link step-eyebrow">This installation</div>
 <h1>Organizations</h1>
-<p class="lede">Each organization has its own publication bank, extraction schema and workspace. Pick one to continue its setup{% if request.state.user.is_super %}, or start a new one{% endif %}.</p>
+<p class="lede">Each organization has its own publication bank, extraction schema and workspace. Pick one to continue its setup{% if can_create %}, or start a new one{% endif %}.</p>
 <div class="org-grid">
   {% for o in orgs %}
   <div class="card org-card" style="{{ brand_vars(o) }}">
@@ -21,7 +21,7 @@
   </div>
   {% endfor %}
 </div>
-{% if request.state.user.is_super %}
+{% if can_create %}
 <section class="sec">
   <h2>New organization</h2>
   <form method="post" action="/orgs/new" class="newrow">
@@ -29,12 +29,16 @@
     <button class="btn small" type="submit">Create</button>
   </form>
 </section>
+{% endif %}
+{% if request.state.user.is_super %}
 <section class="sec">
   <h2>Back end</h2>
   <p class="secnote">An Excel workbook of the standard categories, plus what each organization has customized: options added or removed, reworded instructions, custom categories, removed categories and gene lists.</p>
   <a class="btn small line" href="/admin/schema-registry.xlsx">Download the schema registry (Excel) ↓</a>
   <p class="secnote">Who agreed to which version of the Member Terms and Organization Agreement, and when.</p>
   <a class="btn small line" href="/admin/terms-acceptances.csv">Download terms acceptances (CSV) ↓</a>
+  <p class="secnote">Who may create a publication bank during the beta, requests for access, and blocked attempts.</p>
+  <a class="btn small line" href="/admin/allowlist">Manage approved addresses →</a>
 </section>
 <section class="sec last">
   <h2>Move an organization</h2>

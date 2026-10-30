@@ -6,7 +6,7 @@ import threading
 from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from pubbank import auth, mailer, orgs
+from pubbank import allowlist, auth, mailer, orgs
 from pubbank.db import connect
 
 
@@ -301,12 +301,20 @@ def register(app, page):
         return r
 
     # ------------------------------------------------------------------------------------------ invitation and reset links
+    NOT_APPROVED = "This address is not approved to create a publication bank or be an administrator during the beta. Please contact the person who invited you."
+
+    def _needs_approval(link):
+        """Creating a new account from the sign-up page, or becoming an administrator, needs an address on the allowlist (members do not)."""
+        return link["purpose"] == "signup" or (link["purpose"] == "invite" and link["role"] == "admin")
+
     def _link_page(request, token, err="", status=200):
         with connect() as conn:
             link = auth.get_link(conn, token)
-            if link and link["purpose"] not in ("invite", "reset"):
+            if link and link["purpose"] not in ("invite", "reset", "signup"):
                 link = None                   # a sign-in link opens at /signin, never here
             existing = auth.user_by_email(conn, link["email"]) if link else None
+            if link and link["purpose"] == "signup" and existing:
+                link = None                   # the account was made in the meantime: this link is finished
             user = auth.user_for_token(conn, request.cookies.get(auth.COOKIE))
         org_name = orgs.load(link["folder"])["name"] if link and link["folder"] and orgs.valid_folder(link["folder"]) else ""
         return page(request, "invite.html", link=link, existing=existing, org_name=org_name, token=token, err=err, signed_in=user,
@@ -320,8 +328,10 @@ def register(app, page):
     def invite_post(request: Request, token: str, name: str = Form(""), password: str = Form(""), password2: str = Form("")):
         with connect() as conn:
             link = auth.get_link(conn, token)
-            if not link or link["purpose"] not in ("invite", "reset"):
+            if not link or link["purpose"] not in ("invite", "reset", "signup"):
                 return _link_page(request, token, status=410)
+            if _needs_approval(link) and not allowlist.is_allowed(conn, link["email"]):       # re-checked now, in case the address was removed since the link was made
+                return _link_page(request, token, NOT_APPROVED, 403)
             no_password = not auth.passwords_allowed()          # links are the only way in: nobody chooses a password
             existing = auth.user_by_email(conn, link["email"])
             if existing and link["purpose"] != "reset":
@@ -364,6 +374,8 @@ def register(app, page):
             link = auth.get_link(conn, token)
             if not link or not user or user["email"].lower() != link["email"] or link["purpose"] != "invite":
                 return _link_page(request, token, "Sign in with the invited email address first.", 400)
+            if _needs_approval(link) and not allowlist.is_allowed(conn, link["email"]):
+                return _link_page(request, token, NOT_APPROVED, 403)
             if link["folder"] and link["role"] in auth.ROLES and orgs.valid_folder(link["folder"]):
                 auth.add_member(conn, user["id"], link["folder"], link["role"])
                 auth.audit(conn, user["id"], "joined_org", link["folder"])
@@ -396,6 +408,15 @@ def register(app, page):
         if not e or role not in auth.ROLES:
             return _people_page(request, folder, err="Enter a valid email address and choose a role.", status=400)
         with connect() as conn:
+            if role == "admin" and not allowlist.is_allowed(conn, e):
+                if request.state.user["is_super"]:         # the owner's invitation is the approval
+                    allowlist.add(conn, e, "owner invitation", request.state.user["id"])
+                    auth.audit(conn, request.state.user["id"], "allowlist_added", e)
+                else:
+                    auth.audit(conn, request.state.user["id"], "admin_invite_blocked", f"{folder}|{e}"[:300])
+                    conn.commit()
+                    return _people_page(request, folder, status=403,
+                                        err=f"{e} is not approved to be an administrator during the beta. You can invite them as a member instead, or ask the installation owner to approve them.")
             token = auth.make_link(conn, e, folder, role, request.state.user["id"])
             auth.audit(conn, request.state.user["id"], "invite_created", f"{folder} {role} {e}")
             conn.commit()

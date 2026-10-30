@@ -12,6 +12,9 @@
 {% elif link.purpose == 'reset' %}
 <h1>Choose a new password</h1>
 <p class="tagline">For {{ link.email }}. After you save it you will be signed in.</p>
+{% elif link.purpose == 'signup' %}
+<h1>Create your account</h1>
+<p class="tagline">For {{ link.email }}. {% if mode == 'link' %}Tell us your name. There is no password: next time you will sign in with a link we email you.{% else %}Tell us your name and choose a password.{% endif %} After this you can create your organization's publication bank.</p>
 {% elif existing %}
 <h1>Join {{ org_name or 'this organization' }}</h1>
 <p class="tagline">{{ link.email }} already has an account here.</p>

@@ -25,9 +25,16 @@ def own_key(folder):
         return ""
 
 
+def shared_key(folder):
+    """The host's shared default key, unless this organization was created by someone other than the owner: those must bring their own."""
+    if orgs.load(folder).get("own_key_required"):
+        return ""
+    return os.environ.get("ANTHROPIC_API_KEY", "").strip()
+
+
 def key_for(folder):
-    """The key this organization's calls use: its own, else the shared default from .env, else empty."""
-    return own_key(folder) or os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    """The key this organization's calls use: its own, else the shared default from .env (not for organizations that must bring their own), else empty."""
+    return own_key(folder) or shared_key(folder)
 
 
 def has_key(folder):
@@ -39,7 +46,7 @@ def status(folder):
     own = own_key(folder)
     if own:
         return {"source": "own", "last4": own[-4:]}
-    return {"source": "default" if os.environ.get("ANTHROPIC_API_KEY", "").strip() else "none", "last4": ""}
+    return {"source": "default" if shared_key(folder) else "none", "last4": ""}
 
 
 def client(folder):

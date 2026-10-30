@@ -15,7 +15,7 @@ import requests
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-PUBLIC = {"/login", "/login/link", "/logout", "/first-run", "/forgot", "/recover", "/healthz"}
+PUBLIC = {"/login", "/login/link", "/logout", "/first-run", "/forgot", "/recover", "/healthz", "/start", "/start/request"}
 
 
 def routes():

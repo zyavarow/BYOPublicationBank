@@ -22,9 +22,9 @@ from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from starlette.concurrency import run_in_threadpool  # noqa: E402
 
-from app import access, auth_routes, terms_routes  # noqa: E402
+from app import access, auth_routes, signup_routes, terms_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
+from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
@@ -121,6 +121,7 @@ def _gate(request):
             return RedirectResponse("/first-run", status_code=303) if wants_page else JSONResponse({"error": "Create the first account first."}, status_code=401)
         user = auth.user_for_token(conn, request.cookies.get(auth.COOKIE))
         terms_due = bool(user) and request.url.path not in terms.EXEMPT and terms.member_terms_due(conn, user["id"])
+        creator = level == "creator" and allowlist.may_create_banks(conn, user)
     if not user:
         if wants_page and request.method == "GET":
             nxt = request.url.path + ("?" + request.url.query if request.url.query else "")
@@ -132,7 +133,7 @@ def _gate(request):
             nxt = request.url.path + ("?" + request.url.query if request.url.query else "")
             return RedirectResponse("/terms?next=" + quote_plus(nxt), status_code=303)
         return JSONResponse({"error": "Please open the site again and accept the Member Terms first.", "terms": True}, status_code=403)
-    ok = {"any": True, "super": user["is_super"], "admin_any": auth.is_any_admin(user),
+    ok = {"any": True, "super": user["is_super"], "admin_any": auth.is_any_admin(user), "creator": creator,
           "member": auth.allows(user, folder, "member"), "admin": auth.allows(user, folder, "admin")}[level]
     if not ok:
         if wants_page:
@@ -197,6 +198,7 @@ def _page(request, name, status_code=200, **ctx):
 
 auth_routes.register(app, _page)
 terms_routes.register(app, _page)
+signup_routes.register(app, _page)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -211,9 +213,10 @@ def home(request: Request, msg: str = "", err: str = ""):
             cfg["initials"] = orgs.initials(cfg["name"])
             cfg["received"], cfg["in_bank"] = orgs.bank_counts(conn, cfg["db_slug"]) if cfg["db_slug"] else (0, 0)
             cards.append(cfg)
+        can_create = allowlist.may_create_banks(conn, user)
     if len(cards) == 1 and cards[0]["role"] == "member":
         return RedirectResponse(f"/org/{cards[0]['folder']}/workspace", status_code=303)      # members have nowhere else to go
-    return _page(request, "home.html", orgs=cards, flash=msg or err, flash_error=bool(err))
+    return _page(request, "home.html", orgs=cards, can_create=can_create, flash=msg or err, flash_error=bool(err))
 
 
 @app.get("/admin/schema-registry.xlsx")
@@ -266,7 +269,9 @@ def new_org(request: Request, name: str = Form(...), agree: str = Form(""), vers
         err = "Please tick the box to continue." if version else ""
         return _page(request, "terms.html", err=err, action="/orgs/new", hidden={"name": name}, button="Agree and create", cancel="/", doc=current, updated=False, before=None)
     with connect() as conn:
-        folder = orgs.create(name, conn)
+        folder = orgs.create(name, conn, by_owner=user["is_super"])        # anyone but the owner gets a separate bank and must bring their own Anthropic key
+        if not user["is_super"]:
+            auth.add_member(conn, user["id"], folder, "admin")
         terms.record(conn, user, key, folder, terms.org_id_for(conn, orgs.load(folder).get("db_slug")))
         auth.audit(conn, user["id"], "terms_accepted", f"organization_agreement {current['version']} for {folder}")
         conn.commit()

@@ -43,17 +43,21 @@ def copy_rows(src, dst, table, where, args, org_map=None, extra_select=""):
     sel = ", ".join(f"{c}::text" if t == "tsvector" else c for c, t in cols)
     ins = ", ".join(c for c, _ in cols)
     marks = ", ".join("%s::tsvector" if t == "tsvector" else "%s" for _, t in cols)
-    n = 0
+    print(f"  {table}: reading from this laptop...", flush=True)
+    batch = []
     for row in src.execute(f"SELECT {sel} FROM {table} WHERE {where}", args):
         row = list(row)
         if org_map:
             for i, (c, _) in enumerate(cols):
                 if c == "org_id":
                     row[i] = org_map
-        row = [json.dumps(v) if isinstance(v, (dict, list)) and t in ("jsonb", "json") else v for v, (_, t) in zip(row, cols)]
-        dst.execute(f"INSERT INTO {table} ({ins}) VALUES ({marks})", row)
-        n += 1
-    return n
+        batch.append([json.dumps(v) if isinstance(v, (dict, list)) and t in ("jsonb", "json") else v for v, (_, t) in zip(row, cols)])
+    sql = f"INSERT INTO {table} ({ins}) VALUES ({marks})"
+    for start in range(0, len(batch), 100):             # a hundred rows per trip to the Test database: many small trips over the internet are very slow
+        with dst.cursor() as cur:
+            cur.executemany(sql, batch[start:start + 100])
+        print(f"  {table}: {min(start + 100, len(batch))} of {len(batch)} sent", flush=True)
+    return len(batch)
 
 
 def fix_sequence(dst, table):

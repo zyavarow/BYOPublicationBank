@@ -353,6 +353,18 @@ blockquote cite { display: block; font-style: normal; font: 500 11px var(--mono)
 .authpage form { border-top: 2px solid var(--ink); padding-top: 26px; display: flex; flex-direction: column; gap: 22px; text-align: left; }
 .authpage .after { margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 16px; line-height: 1.5; color: var(--label); text-align: left; }
 .authpage .flash { text-align: left; max-width: none; }
+/* beta labels, footer and legal documents */
+.betabadge { display: inline-block; font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); border: 1px solid var(--accent); padding: 1px 6px; vertical-align: middle; }
+.sitefoot { max-width: 1100px; margin: 0 auto; padding: 18px 24px 28px; font-size: 14px; color: var(--faint); text-align: center; border-top: 1px solid var(--line); }
+.sitefoot .betabadge { margin-right: 8px; }
+.authpage.wide { max-width: 680px; }
+.authpage.wide .tagline { max-width: 560px; }
+.docbox { text-align: left; border: 1px solid var(--line); background: #fff; padding: 18px 22px; margin-bottom: 22px; max-height: 340px; overflow-y: auto; font-size: 16px; line-height: 1.55; }
+.docbox.full { max-height: none; }
+.docbox h3, .docbox h4 { font-size: 20px; margin: 18px 0 6px; } .docbox h3:first-child { margin-top: 0; }
+.docbox p { margin: 0 0 10px; } .docbox ul { margin: 0 0 10px; padding-left: 22px; }
+.authpage form.plain { border: 0; padding: 12px 0 0; display: block; }
+.betanote { margin: 6px 0 18px; font-size: 14px; line-height: 1.45; color: var(--label); font-style: italic; }
 .linkbtn { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise .6s ease both; }

@@ -14,6 +14,7 @@
 
 {% elif state == 'none' %}
 <p class="lede">Before the whole library is read, check a small sample. We choose a varied set of papers, read them with your template, and show you every answer next to the quote it came from. You mark each one right or wrong, and the scorecard shows which fields need work. It is recommended, not required.</p>
+<p class="hint">Extracted fields are AI-generated and should be reviewed.</p>
 <ol class="three">
   <li><span class="n">1</span><div class="t">Pick a sample</div><div class="d">Free. We choose a varied set of papers.</div></li>
   <li><span class="n">2</span><div class="t">We read them</div><div class="d">You see the price and confirm first.</div></li>
@@ -42,6 +43,7 @@
     <h2>Price</h2>
     {% if est %}
     <div class="costline"><strong>{{ est.papers }} papers · about {{ money(est.expected) }}</strong><br><span>at most {{ money(est.high) }}; the run stops if it reaches that. About {{ est.minutes }} minutes.</span></div>
+    <div class="hint">Estimates only; actual API charges may differ.</div>
     <label class="check"><input type="checkbox" id="runConfirm"> I understand this will cost about {{ money(est.expected) }}, and no more than {{ money(est.high) }}.</label>
     <button type="button" class="btn" id="runBtn" disabled {{ '' if has_key else 'data-nokey=1' }}>Read these papers</button>
     {% if not has_key %}<div class="hint">No Anthropic API key is set on this computer.</div>{% endif %}

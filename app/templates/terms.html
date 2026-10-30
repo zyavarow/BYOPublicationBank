@@ -1,0 +1,25 @@
+{% extends "auth_base.html" %}
+{% block title %}{{ doc.title }} · BYO Publication Bank{% endblock %}
+{% block authclass %} wide{% endblock %}
+{% block auth %}
+{% if updated %}
+<h1 class="termh">We've updated our {{ doc.title }}</h1>
+<p class="tagline">Please read the new version ({{ doc.version }}) and agree to keep using the site. You last agreed to version {{ before }}.</p>
+{% if doc.changes %}<div class="flash" role="note"><strong>What changed:</strong> {{ doc.changes }}</div>{% endif %}
+{% else %}
+<h1 class="termh">{{ doc.title }}</h1>
+<p class="tagline">Please read this and agree before you continue.</p>
+{% endif %}
+{% if err %}<div class="flash err" role="alert">{{ err }}</div>{% endif %}
+<div class="docbox" tabindex="0" role="region" aria-label="{{ doc.title }}">{{ doc.html|safe }}</div>
+<form method="post" action="{{ action }}" id="termsForm">
+  {% for k, v in hidden.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+  <input type="hidden" name="version" value="{{ doc.version }}">
+  <label class="check"><input type="checkbox" name="agree" id="agree"> I have read and agree to the {{ doc.title }} (version {{ doc.version }}).</label>
+  <button class="btn" type="submit" id="agreeBtn">{{ button }}</button>
+</form>
+{% if cancel %}<p class="after">Not ready? <a href="{{ cancel }}">Go back</a>. Nothing has been created.</p>
+{% else %}<p class="after">If you do not agree, you can only sign out.
+  <form method="post" action="/logout" class="plain"><button class="btn line small" type="submit">Sign out</button></form></p>{% endif %}
+<script src="{{ static_v('js/terms.js') }}"></script>
+{% endblock %}

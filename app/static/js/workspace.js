@@ -108,6 +108,7 @@
     for (const p of a.paragraphs) body.appendChild(cited(p.text));
     box.appendChild(body);
     box.appendChild(el("p", "basis", [a.confidence_reason, a.confidence_basis].filter(Boolean).join(" ")));
+    box.appendChild(el("p", "betanote", `AI-generated summary of papers in ${$("wsRoot").dataset.orgname}'s publication bank. For research use only, not medical advice. Please verify against the cited sources.`));
     if (a.not_covered && a.not_covered.length) {
       const c = el("section", "callout notcov");
       c.appendChild(el("h2", "ctitle", "Not covered by this library"));

@@ -22,6 +22,8 @@
 {% if flash %}<div class="flash {{ 'err' if flash_error else '' }}" role="status">{{ flash }}</div>{% endif %}
 {% block body %}{% endblock %}
 </main>
+<footer class="sitefoot"><span class="betabadge">Beta</span>
+  <a href="/legal/member-terms">Member Terms</a> · <a href="/legal/privacy-notice">Privacy Notice</a> · <a href="/legal/service-providers">Service Providers</a></footer>
 <script src="{{ static_v('js/progress.js') }}"></script>
 </body>
 </html>

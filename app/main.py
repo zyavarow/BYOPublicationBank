@@ -22,9 +22,9 @@ from fastapi.templating import Jinja2Templates  # noqa: E402
 
 from starlette.concurrency import run_in_threadpool  # noqa: E402
 
-from app import access, auth_routes  # noqa: E402
+from app import access, auth_routes, terms_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, topic  # noqa: E402
+from pubbank import adminlog, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
@@ -120,12 +120,18 @@ def _gate(request):
         if not auth.has_users(conn):
             return RedirectResponse("/first-run", status_code=303) if wants_page else JSONResponse({"error": "Create the first account first."}, status_code=401)
         user = auth.user_for_token(conn, request.cookies.get(auth.COOKIE))
+        terms_due = bool(user) and request.url.path not in terms.EXEMPT and terms.member_terms_due(conn, user["id"])
     if not user:
         if wants_page and request.method == "GET":
             nxt = request.url.path + ("?" + request.url.query if request.url.query else "")
             return RedirectResponse("/login?next=" + quote_plus(nxt), status_code=303)
         return JSONResponse({"error": "Please sign in again."}, status_code=401)
     request.state.user = user
+    if terms_due:           # nothing but the terms screen until the current Member Terms are accepted
+        if wants_page and request.method == "GET":
+            nxt = request.url.path + ("?" + request.url.query if request.url.query else "")
+            return RedirectResponse("/terms?next=" + quote_plus(nxt), status_code=303)
+        return JSONResponse({"error": "Please open the site again and accept the Member Terms first.", "terms": True}, status_code=403)
     ok = {"any": True, "super": user["is_super"], "admin_any": auth.is_any_admin(user),
           "member": auth.allows(user, folder, "member"), "admin": auth.allows(user, folder, "admin")}[level]
     if not ok:
@@ -190,6 +196,7 @@ def _page(request, name, status_code=200, **ctx):
 
 
 auth_routes.register(app, _page)
+terms_routes.register(app, _page)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -247,12 +254,22 @@ def org_bundle_upload(request: Request, folder: str = Form(""), file: UploadFile
 
 
 @app.post("/orgs/new")
-def new_org(name: str = Form(...)):
+def new_org(request: Request, name: str = Form(...), agree: str = Form(""), version: str = Form("")):
+    """Create a publication bank. The person creating it must first accept the current Organization Agreement; the acceptance is recorded with the new bank."""
     name = name.strip()
     if not name:
         return RedirectResponse("/?msg=Please+enter+a+name", status_code=303)
+    user = request.state.user
+    key = "organization_agreement"
+    current = terms.current(key)
+    if agree != "on" or version != current["version"]:       # asked every time a bank is created: the agreement is about that bank
+        err = "Please tick the box to continue." if version else ""
+        return _page(request, "terms.html", err=err, action="/orgs/new", hidden={"name": name}, button="Agree and create", cancel="/", doc=current, updated=False, before=None)
     with connect() as conn:
         folder = orgs.create(name, conn)
+        terms.record(conn, user, key, folder, terms.org_id_for(conn, orgs.load(folder).get("db_slug")))
+        auth.audit(conn, user["id"], "terms_accepted", f"organization_agreement {current['version']} for {folder}")
+        conn.commit()
     return RedirectResponse(f"/org/{folder}/step/1", status_code=303)
 
 

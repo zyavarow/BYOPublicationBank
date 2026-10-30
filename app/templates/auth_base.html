@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block topbar %}{% endblock %}
 {% block body %}
-<div class="authpage rise">
+<div class="authpage{% block authclass %}{% endblock %} rise">
   <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <div class="eyebrow">Research publication bank</div>
+  <div class="eyebrow">Research publication bank <span class="betabadge">Beta</span></div>
   {% block auth %}{% endblock %}
 </div>
 {% endblock %}

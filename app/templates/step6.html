@@ -49,7 +49,7 @@
     <label class="optcard"><input type="radio" name="fmt" value="technical" {{ 'checked' if org.answer_format == 'technical' }}><div><strong>Technical summary</strong><div class="pdesc">More terminology, still fully cited, for clinical and scientific staff.</div></div></label>
   </div>
   <h2 class="mt-s">Search depth</h2>
-  <p class="plain nomargin">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later.</p>
+  <p class="plain nomargin">How much of the bank one search reads: deeper is slower and costs more per question. These costs are estimates, because the search itself is built later. Estimates only; actual API charges may differ.</p>
   <div class="row">
     {% for d in depths %}<label class="optcard"><input type="radio" name="depth" value="{{ d.key }}" {{ 'checked' if org.search_depth == d.key }}><div><strong>{{ d.label }}</strong> <span class="chip">≈ ${{ '%.2f'|format(d.cost) }} per search</span><div class="pdesc">{{ d.text }}</div></div></label>{% endfor %}
   </div>

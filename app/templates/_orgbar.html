@@ -5,6 +5,7 @@
     <span class="avatar">{% if org.logo %}<img src="/org/{{ org.folder }}/logo?v={{ org.logo }}" alt="">{% else %}{{ org.initials }}{% endif %}</span>
     <span><span class="wsname">{{ org.name }}</span><span class="wssub mono">{{ sub }}</span></span></a>
   <nav class="right" aria-label="Organization">
+    <span class="betabadge">Beta</span>
     <a class="exit {{ 'on' if active == 'ask' }}" href="/org/{{ org.folder }}/workspace"{% if active == 'ask' %} aria-current="page"{% endif %}>{{ 'Ask' if active == 'ask' else 'Workspace' }}</a>
     {% if can_admin(request.state.user, org.folder) %}
     <a class="exit {{ 'on' if active == 'admin' }}" href="/org/{{ org.folder }}/admin"{% if active == 'admin' %} aria-current="page"{% endif %}>Admin</a>

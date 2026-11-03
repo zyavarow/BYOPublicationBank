@@ -301,6 +301,6 @@ def run_job(jid, org_id, folder, cfg, feedback=""):
         sources._set(jid, done=1, finished=True, stage="Done", result={"kind": "schema", "cost": round(cost, 3),
                                                                       "new_fields": len(data["new_fields"]), "changes": sum(1 for c in data["core_changes"] if c["action"] != "keep")})
     except Exception as e:
-        sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        sources._set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
     finally:
         conn.close()

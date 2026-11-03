@@ -140,6 +140,16 @@ Without email, people ask an administrator for a reset link (People page). To le
 
 Once `PUBBANK_SMTP_HOST` and `PUBBANK_MAIL_FROM` are set, the sign-in page shows "Email me a reset link". The reply is the same whether or not the address has an account, links work once and expire in 2 hours, and each address can request at most 3 per hour. If the settings are missing, the page keeps the old text.
 
+## Encrypting organizations' API keys (required before real users)
+
+Each organization's own Anthropic key is stored **encrypted** in the database. The lock's secret lives only in a Railway variable, so a copy of the database alone cannot reveal any key.
+
+1. Make a long random text (for example, 40 or more random letters and numbers from a password manager). Do not paste it into chat.
+2. In Railway, on the **app service** (not the database service), add the variable `PUBBANK_KEY_SECRET` with that text. Keep a copy somewhere safe: **if it is lost, the stored keys cannot be read and each organization must enter its key again.** Do not change it later unless you are happy to re-enter every key.
+3. The change redeploys the site. The first time an old plain-text key is used, it is moved into the database encrypted and the old file is deleted from the volume automatically.
+4. Without this variable, the site refuses to save a new key (it never falls back to plain text).
+5. A database copied to another installation needs that installation's keys re-entered unless it uses the same secret.
+
 ## Optional: PubMed settings (for importing papers by PubMed ID)
 
 Importing a list of PubMed IDs (or a reference-manager export) contacts NCBI's free public service. NCBI asks every user to identify themselves, so add these to the app service's variables:

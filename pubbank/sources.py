@@ -17,6 +17,7 @@ import xml.etree.ElementTree as ET
 from Bio import Entrez
 from rapidfuzz import fuzz
 
+from pubbank import apikey
 from pubbank.db import Jsonb, connect
 from pubbank.sections import section_kind
 
@@ -547,7 +548,7 @@ def _ingest(jid, org_id, records_by_pmid, extra_refs, source, bad_tokens=()):
         _set(jid, finished=True, stage="Done", result={"added": len(new), "already": already, "unmatched": len(extra_refs),
                                                        "not_in_pubmed": list(bad_tokens), "indexed": indexed, "index_error": index_error, **counts})
     except Exception as e:
-        _set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        _set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
     finally:
         conn.close()
 
@@ -560,7 +561,7 @@ def run_pmid_job(jid, org_id, pmids, bad_tokens):
         missing = [p for p in pmids if p not in found]
         _ingest(jid, org_id, found, [], "pubmed_id", [f"PMID {p} (not found in PubMed)" for p in missing] + [f"{b} (not a PubMed ID)" for b in bad_tokens])
     except Exception as e:
-        _set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        _set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
 
 
 def run_reference_job(jid, org_id, records):
@@ -578,7 +579,7 @@ def run_reference_job(jid, org_id, records):
                 found[r["pmid"]]["abstract"] = r["abstract"]
         _ingest(jid, org_id, found, unmatched, "reference_list")
     except Exception as e:
-        _set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        _set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
 
 
 def start(target, *args):

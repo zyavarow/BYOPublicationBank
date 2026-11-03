@@ -185,7 +185,7 @@ def _submit_chunks(conn, client, run_id, reqs, round_no, message):
 
 
 def _fail(conn, run_id, e):
-    conn.execute("UPDATE extraction_runs SET status = 'failed', message = %s, updated_at = now() WHERE id = %s", (f"{type(e).__name__}: {e}"[:400], run_id))
+    conn.execute("UPDATE extraction_runs SET status = 'failed', message = %s, updated_at = now() WHERE id = %s", (apikey.scrub(f"{type(e).__name__}: {e}")[:400], run_id))
     conn.commit()
 
 

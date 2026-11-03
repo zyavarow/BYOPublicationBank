@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from pubbank import bank, sources
+from pubbank import apikey, bank, sources
 from pubbank.db import connect
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -117,4 +117,4 @@ def run_job(jid, org_id, db_slug, copy_files=None):
             "added": added, "kind": "pdf", "in_bank": after["inbank"] + after["abstract"], "ocr": after["ocr"],
             "duplicate": after["duplicate"], "setaside": after["setaside"], "failed": after["failed"], "indexed": indexed, "index_error": index_error})
     except Exception as e:
-        sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        sources._set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))

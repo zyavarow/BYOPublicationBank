@@ -15,7 +15,7 @@ from typing import Literal
 import anthropic
 from pydantic import BaseModel, Field
 
-from pubbank import apikey, search
+from pubbank import apikey, quotes, search
 from pubbank.bank import clean_title
 from pubbank.db import Jsonb, connect
 
@@ -195,6 +195,7 @@ def _system(role, fmt, disease):
             "- If a passage is marked ABSTRACT ONLY, treat its details as limited and say so where it matters.\n"
             "- Say where papers disagree and, if the passages give a reason (different antibody, model, patient group, method), name it.\n"
             "- Distinguish what was seen in patients from what was seen in cell or animal models.\n"
+            "- Put the evidence in your own words. Quote a paper directly only when the exact wording matters, at most one short sentence at a time, in quotation marks. Never copy whole passages.\n"
             f"- {ROLES[role][1]}\n- {FORMATS[fmt]}\n"
             "- confidence: High only if several independent papers agree and the evidence fits the question; Low if it rests on one paper or on indirect evidence.")
 
@@ -238,6 +239,12 @@ def ask(conn, org_id, question, role="general", depth="standard", fmt="plain", d
 EVIDENCE_KIND = [("clinical", re.compile(r"case report|cohort|registry|clinical|patients?", re.I)), ("laboratory", re.compile(r"mouse|animal|cell|in vitro|structur|biochem", re.I))]
 
 
+def cited_text(ans, passages, p):
+    """The answer text that cites passage p, used to pick which sentences of the passage to show."""
+    i = passages.index(p) + 1
+    return " ".join(para["text"] for para in ans["paragraphs"] if i in para["cites"])
+
+
 def _finish(ans, passages, extracted):
     """Check the citations, group the cited passages by paper (numbered in order of first citation) and set the final confidence."""
     n = len(passages)
@@ -255,6 +262,7 @@ def _finish(ans, passages, extracted):
     # rewrite passage numbers in the text as paper numbers, so the reader sees [1], [2] for papers and can open the exact passages
     for para in ans["paragraphs"]:
         para["text"] = re.sub(r"\[(\d+)\]", lambda m: f"[{paper_no[passages[int(m.group(1)) - 1]['paper_id']]}]" if 1 <= int(m.group(1)) <= n else "", para["text"])
+        para["text"] = quotes.cap_quoted(para["text"])
         para["papers"] = sorted({paper_no[passages[c - 1]["paper_id"]] for c in para["cites"]})
         para["text"] = re.sub(r"(\[\d+\])(?=\1)", "", para["text"])
     sources = []
@@ -264,7 +272,7 @@ def _finish(ans, passages, extracted):
         ex = extracted.get(pid, [])
         sources.append({"no": paper_no[pid], "paper_id": pid, "title": first["title"], "authors": first["authors"][:3], "journal": first["journal"],
                         "year": first["year"], "pmid": first["pmid"], "doi": first["doi"], "text_level": first["text_level"], "extracted": ex,
-                        "passages": [{"heading": p["heading"], "page": p["page"], "text": p["text"][:1400]} for p in ps]})
+                        "passages": [{"heading": p["heading"], "page": p["page"], "text": quotes.excerpt(p["text"], hint=cited_text(ans, passages, p))} for p in ps]})
     # final confidence: never higher than the evidence allows, whatever the model said
     k = len(sources)
     cap = "High" if k >= 3 else "Medium" if k == 2 else "Low"

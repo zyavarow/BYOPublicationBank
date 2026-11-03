@@ -194,7 +194,11 @@
       const body = el("div", "srcbody");
       body.appendChild(el("div", "srctitle", p.title));
       body.appendChild(el("div", "srcmeta", [p.journal, p.year, p.heading, p.page ? "p." + p.page : ""].filter(Boolean).join(" · ")));
-      const q = el("blockquote"); q.textContent = p.text.length > 700 ? p.text.slice(0, 700) + "…" : p.text; body.appendChild(q);
+      const q = el("blockquote"); q.textContent = p.text; body.appendChild(q);
+      const lk = el("div", "srclinks");
+      if (p.pmid) { const a = el("a", "linkbtn", "PubMed ↗"); a.href = "https://pubmed.ncbi.nlm.nih.gov/" + p.pmid + "/"; a.target = "_blank"; a.rel = "noopener"; lk.appendChild(a); }
+      if (p.doi) { const a = el("a", "linkbtn", "DOI ↗"); a.href = "https://doi.org/" + p.doi; a.target = "_blank"; a.rel = "noopener"; lk.appendChild(a); }
+      body.appendChild(lk);
       body.appendChild(el("div", "srcmeta faint", "Found by: " + Object.keys(p.why).join(", ")));
       row.appendChild(body); card.appendChild(row);
     }

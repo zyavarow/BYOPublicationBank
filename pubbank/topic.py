@@ -171,6 +171,6 @@ def run_ai_job(jid, org_id, disease, max_cost):
             "borderline": sum(1 for r in results if r[1] == "borderline"), "errors": errors[0], "cost": round(spent[0], 3),
             "stopped_at_cap": stopped})
     except Exception as e:
-        sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        sources._set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
     finally:
         conn.close()

@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from app import access, auth_routes, signup_routes, terms_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, mailer, migrations, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
+from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, mailer, migrations, quotes, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
@@ -39,7 +39,19 @@ class _HideLinkKeys(logging.Filter):
         return True
 
 
+class _HideApiKeys(logging.Filter):
+    """Never let anything shaped like an Anthropic key reach the logs."""
+    def filter(self, record):
+        if isinstance(record.msg, str):
+            record.msg = apikey.scrub(record.msg)
+        if isinstance(record.args, tuple):
+            record.args = tuple(apikey.scrub(x) if isinstance(x, str) else x for x in record.args)
+        return True
+
+
 logging.getLogger("uvicorn.access").addFilter(_HideLinkKeys())
+logging.getLogger("uvicorn.access").addFilter(_HideApiKeys())
+logging.getLogger("uvicorn.error").addFilter(_HideApiKeys())
 
 APP = Path(__file__).resolve().parent
 app = FastAPI(title="Research Portal Setup Kit", docs_url=None, redoc_url=None, openapi_url=None)
@@ -1273,7 +1285,10 @@ def workspace_ask(request: Request, folder: str, question: str = Form(""), role:
             if not question.strip():
                 return JSONResponse({"error": "Type a question or some search words."}, status_code=400)
             hits = search.search(conn, oid, question.strip(), k=20, per_paper=2, synonyms=syn, paper_ids=paper_ids)
-            return {"mode": "search", "passages": search.passages(conn, hits)}
+            found = search.passages(conn, hits)
+            for p in found:
+                p["text"] = quotes.excerpt(p["text"], hint=question)
+            return {"mode": "search", "passages": found}
         if not apikey.has_key(folder):
             return JSONResponse({"error": "No Anthropic API key is set. Add one on the Review & Launch page."}, status_code=400)
         if sources.busy(oid):
@@ -1352,7 +1367,11 @@ def workspace_answer(request: Request, folder: str, ask_id: int):
         r = None
     if not r:
         return JSONResponse({"error": "Not found"}, status_code=404)
-    return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": r[3]}
+    saved = r[3]
+    for s in saved or []:               # answers saved before the quote cap keep long passages in the log; show only an excerpt
+        for p in s.get("passages", []):
+            p["text"] = quotes.excerpt(p.get("text", ""))
+    return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": saved}
 
 
 @app.post("/org/{folder}/index/build")
@@ -1372,7 +1391,7 @@ def index_build(folder: str):
             res = search_index.build(oid, on_progress=lambda stage, d, t: sources._set(jid, stage=stage, done=d, total=t))
             sources._set(jid, finished=True, stage="Done", result={"kind": "index", **res})
         except Exception as e:
-            sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+            sources._set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
     sources.start(work)
     return {"job": jid}
 

@@ -71,7 +71,7 @@ def _call(client, model, system_prompt, user_text, model_cls):
     except ValidationError as e:
         out.update(status="invalid", error=f"answer did not match the schema: {e.error_count()} problems: {str(e)[:300]}")
     except anthropic.APIStatusError as e:
-        out.update(status="error", error=f"{e.status_code}: {str(e)[:400]}")
+        out.update(status="error", error=f"{e.status_code}: {str(e)[:400]}".replace("sk-ant-", "[hidden]-"))
     except anthropic.APIConnectionError as e:
         out.update(status="error", error=f"connection problem: {type(e).__name__}")
     else:

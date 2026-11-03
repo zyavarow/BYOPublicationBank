@@ -237,7 +237,7 @@ def run_job(jid, org_id, folder, sample_id, max_cost):
         sources._set(jid, finished=True, stage="Done", result={"kind": "sample", "done": done[0], "failed": failed[0], "cost": round(spent[0], 2),
                                                                "stopped_at_cap": stopped, "sample": sample_id})
     except Exception as e:
-        sources._set(jid, finished=True, stage="Failed", error=f"{type(e).__name__}: {e}")
+        sources._set(jid, finished=True, stage="Failed", error=apikey.scrub(f"{type(e).__name__}: {e}"))
     finally:
         conn.close()
 

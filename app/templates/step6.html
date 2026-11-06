@@ -95,7 +95,8 @@
   // API key (the key itself is never shown again: only where it comes from and its last four characters)
   let keyInfo = {{ key | tojson }};
   const drawKey = () => {
-    $("keyState").innerHTML = keyInfo.source === "own" ? "<strong>Using this organization's own key</strong> ending in <code>" + keyInfo.last4 + "</code>."
+    $("keyState").innerHTML = keyInfo.unreadable ? "<strong class='warn-text'>A key was saved for this organization but can no longer be read</strong> (the installation's encryption secret was changed). Enter the key again below. Until then " + (keyInfo.source === "default" ? "the shared default key is used." : "no key is in use.")
+      : keyInfo.source === "own" ? "<strong>Using this organization's own key</strong> ending in <code>" + keyInfo.last4 + "</code>."
       : keyInfo.source === "default" ? "<strong>Using the shared default key</strong> for this installation. Enter the organization's own key below to replace it for this organization."
       : "<strong class='warn-text'>No key is set.</strong> Questions and reading the library will not work until one is entered.";
     $("keyRemove").hidden = keyInfo.source !== "own";
@@ -105,7 +106,7 @@
     $("keyNote").textContent = working;
     const r = await fetch(`/org/${folder}/apikey${path}`, { method: "POST", body });
     const d = await r.json();
-    if (d.source) keyInfo = { source: d.source, last4: d.last4 };
+    if (d.source) keyInfo = { source: d.source, last4: d.last4, unreadable: d.unreadable };
     drawKey();
     $("keyNote").textContent = d.message || d.error || "";
   };

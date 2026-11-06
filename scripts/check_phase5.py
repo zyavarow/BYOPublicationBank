@@ -45,9 +45,21 @@ ok, msg = apikey.save("demo", KEY)
 check("save works with a secret", ok)
 check("stored value is not the key", store["demo"] and KEY not in store["demo"] and "sk-ant" not in store["demo"])
 check("round trip returns the key", apikey.own_key("demo") == KEY)
-check("status shows only last four", apikey.status("demo") == {"source": "own", "last4": KEY[-4:]})
+check("status shows only last four", apikey.status("demo") == {"source": "own", "last4": KEY[-4:], "unreadable": False})
 os.environ["PUBBANK_KEY_SECRET"] = "a different secret"
 check("a different secret cannot read it", apikey.own_key("demo") == "")
+check("status flags a saved key that can no longer be read", apikey.status("demo")["unreadable"] is True)
+os.environ.pop("PUBBANK_KEY_SECRET")
+check("status flags a saved key when the secret is missing", apikey.status("demo")["unreadable"] is True)
+os.environ["PUBBANK_KEY_SECRET"] = "a long random test secret"
+check("status is not flagged when the key reads fine", apikey.status("demo")["unreadable"] is False)
+import anthropic, httpx  # noqa: E402
+_req = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+_auth = anthropic.AuthenticationError("bad", response=httpx.Response(401, request=_req), body=None)
+_credit = anthropic.BadRequestError("Your credit balance is too low", response=httpx.Response(400, request=_req), body=None)
+check("rejected own key gets a plain explanation", "own API key" in apikey.explain(_auth, "demo"))
+check("no credit gets a plain explanation", "run out of credit" in apikey.explain(_credit, "demo"))
+check("unrecognised errors get no explanation", apikey.explain(ValueError("x"), "demo") == "")
 os.environ["PUBBANK_KEY_SECRET"] = "a long random test secret"
 
 # 3. an old plain-text file moves into the database and is deleted

@@ -1062,6 +1062,26 @@ def step6(request: Request, folder: str):
                  approved=bool(v) and org["schema_approved"] == v["version"], key=apikey.status(folder))
 
 
+def _ask_error(e, folder):
+    """What the person sees when answering fails: the plain-language reason when we know it, else a general message."""
+    try:
+        why = apikey.explain(e, folder)
+    except Exception:
+        why = ""
+    return why or f"Something went wrong while answering ({type(e).__name__}). Try again, or use Quick depth."
+
+
+@app.get("/admin/keys", response_class=HTMLResponse)
+def admin_keys(request: Request):
+    """Owner overview: which organizations use their own Anthropic key and which use the shared one. Keys are never shown, only the last four characters."""
+    rows = []
+    for cfg in orgs.list_orgs():
+        s = apikey.status(cfg["folder"])
+        rows.append(dict(folder=cfg["folder"], name=cfg["name"], must_bring=bool(cfg.get("own_key_required")), **s))
+    shared = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    return _page(request, "admin_keys.html", rows=rows, shared_last4=shared[-4:] if shared else "")
+
+
 def _key_reply(folder, ok, msg):
     return JSONResponse({"ok": ok, "message": msg, **apikey.status(folder)}, status_code=200 if ok else 400, headers={"Cache-Control": "no-store"})
 
@@ -1306,7 +1326,8 @@ def workspace_ask(request: Request, folder: str, question: str = Form(""), role:
         except ValueError as e:
             sources._set(jid, finished=True, stage="Failed", error=str(e))
         except Exception as e:
-            sources._set(jid, finished=True, stage="Failed", error=f"Something went wrong while answering ({type(e).__name__}). Try again, or use Quick depth.")
+            print(f"[ask] failed ({type(e).__name__}) for organization {folder}: {apikey.scrub(e)}", flush=True)
+            sources._set(jid, finished=True, stage="Failed", error=_ask_error(e, folder))
         finally:
             c.close()
     sources.start(work)

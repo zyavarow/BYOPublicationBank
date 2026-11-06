@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}API keys · BYO Publication Bank{% endblock %}
+{% block body %}
+<div class="eyebrow link step-eyebrow">This installation</div>
+<h1>Anthropic API keys</h1>
+<p class="lede">Which organizations pay for their own questions with their own key, and which use the shared key{% if shared_last4 %} (ending in <code>{{ shared_last4 }}</code>){% endif %}. Keys are never shown here, only their last four characters. Checking a key is free: it asks Anthropic whether the key is valid and uses no tokens.</p>
+
+<section class="sec last">
+  <div class="web-row center"><button type="button" class="btn small" id="checkAll">Check all keys</button><span class="filenote" id="allNote"></span></div>
+  <div class="tablewrap"><table class="banktable">
+    {% for r in rows %}
+    <tr data-folder="{{ r.folder }}">
+      <td class="t"><strong>{{ r.name }}</strong><div class="n">{{ r.folder }}{% if r.must_bring %} · must bring its own key{% endif %}</div></td>
+      <td class="j">{% if r.source == 'own' %}Own key ending in <code>{{ r.last4 }}</code>
+        {% elif r.unreadable %}<span class="warn-text">Saved key cannot be read</span> (encryption secret changed): {{ 'using the shared key' if r.source == 'default' else 'no key in use' }}
+        {% elif r.source == 'default' %}Shared key
+        {% else %}<span class="warn-text">No key</span>{% endif %}</td>
+      <td class="j res">&nbsp;</td>
+      <td class="ra"><button type="button" class="linkbtn chk"{% if r.source == 'none' %} disabled{% endif %}>Check</button></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <p class="secnote">A key that passes the check is valid, but the check cannot see the account's remaining credit. Credit is shown in the Anthropic Console (Settings → Billing), and every key in one workspace shares one balance.</p>
+</section>
+<script>
+(function () {
+  const check = async (tr) => {
+    const res = tr.querySelector(".res");
+    res.textContent = "Checking…";
+    try {
+      const r = await fetch(`/org/${tr.dataset.folder}/apikey/test`, { method: "POST" });
+      const d = await r.json();
+      res.innerHTML = (d.ok ? "<strong>Works</strong>" : "<strong class='warn-text'>Problem</strong>") + ": ";
+      res.appendChild(document.createTextNode(d.message || d.error || ""));
+    } catch (e) { res.textContent = "Could not check."; }
+  };
+  const rows = [...document.querySelectorAll("tr[data-folder]")];
+  for (const tr of rows) tr.querySelector(".chk").addEventListener("click", () => check(tr));
+  document.getElementById("checkAll").addEventListener("click", async () => {
+    document.getElementById("allNote").textContent = "Checking…";
+    for (const tr of rows) if (!tr.querySelector(".chk").disabled) await check(tr);
+    document.getElementById("allNote").textContent = "Done.";
+  });
+})();
+</script>
+{% endblock %}

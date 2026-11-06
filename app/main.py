@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from app import access, auth_routes, signup_routes, terms_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, feedback, mailer, migrations, quotes, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
+from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, erase, feedback, mailer, migrations, quotes, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
@@ -1082,6 +1082,30 @@ def admin_keys(request: Request):
         rows.append(dict(folder=cfg["folder"], name=cfg["name"], must_bring=bool(cfg.get("own_key_required")), **s))
     shared = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     return _page(request, "admin_keys.html", rows=rows, shared_last4=shared[-4:] if shared else "")
+
+
+@app.get("/admin/erase", response_class=HTMLResponse)
+def admin_erase(request: Request, email: str = "", done: str = ""):
+    """Owner tool: look up everything held about one person and delete it on request (Privacy Notice: within 30 days)."""
+    e = auth.clean_email(email) if email.strip() else ""
+    with connect() as conn:
+        found = erase.report(conn, e) if e else None
+        recent = erase.recent(conn)
+    return _page(request, "admin_erase.html", email=email.strip(), searched=bool(email.strip()), valid=bool(e), found=found, recent=recent, done=done)
+
+
+@app.post("/admin/erase")
+def admin_erase_do(request: Request, email: str = Form(""), confirm: str = Form("")):
+    e = auth.clean_email(email)
+    if not e or confirm.strip().lower() != e:
+        return RedirectResponse(f"/admin/erase?email={quote_plus(email)}&done={quote_plus('Nothing was deleted: the confirmation did not match the email address.')}", status_code=303)
+    with connect() as conn:
+        try:
+            counts = erase.erase(conn, e, request.state.user["id"])
+        except ValueError as err:
+            return RedirectResponse(f"/admin/erase?email={quote_plus(e)}&done={quote_plus(str(err))}", status_code=303)
+    msg = "Deleted: " + (", ".join(f"{v} {k}" for k, v in counts.items() if v) or "nothing was found") + ". The record of accepted terms was kept."
+    return RedirectResponse("/admin/erase?done=" + quote_plus(msg), status_code=303)
 
 
 def _key_reply(folder, ok, msg):

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Delete a person's information · BYO Publication Bank{% endblock %}
+{% block body %}
+<div class="eyebrow link step-eyebrow">Privacy requests</div>
+<h1>Delete a person's information</h1>
+<p class="lede">For when someone asks to have their information deleted (the Privacy Notice promises this within 30 days). Look up their email address first: nothing is deleted until you confirm on the next screen. Deleting cannot be undone.</p>
+{% if done %}<div class="callout"><p>{{ done }}</p></div>{% endif %}
+
+<section class="sec">
+  <h2>Look up</h2>
+  <form method="get" action="/admin/erase" class="web-row end">
+    <div class="g2"><label class="lab" for="email">Their email address</label><input type="text" id="email" name="email" value="{{ email }}" autocomplete="off" required></div>
+    <button class="btn small" type="submit">Look up</button>
+  </form>
+</section>
+
+{% if searched %}
+<section class="sec">
+  {% if not valid %}<p class="plain">That does not look like an email address.</p>
+  {% elif not found %}<p class="plain">Nothing is held for <strong>{{ email }}</strong>: no account, questions, sign-in records, invitations or requests.</p>
+  {% else %}
+  <h2>What is held for {{ found.email }}</h2>
+  <div class="tablewrap"><table class="banktable">
+    {% if found.user %}
+    <tr><td class="t"><strong>Account</strong></td><td class="j">{{ found.user.name or '(no name)' }}{% if not found.user.active %} · deactivated{% endif %}{% if found.user.last_login %} · last signed in {{ found.user.last_login.strftime('%b %d, %Y') }}{% endif %}</td></tr>
+    <tr><td class="t"><strong>Organizations</strong></td><td class="j">{% for m in found.memberships %}{{ m.folder }} ({{ m.role }}){% if not loop.last %}, {% endif %}{% else %}none{% endfor %}</td></tr>
+    {% endif %}
+    <tr><td class="t"><strong>Questions and answers</strong></td><td class="j">{{ found.questions }}</td></tr>
+    <tr><td class="t"><strong>Ratings and comments</strong></td><td class="j">{{ found.ratings }}</td></tr>
+    <tr><td class="t"><strong>Sign-in sessions</strong></td><td class="j">{{ found.sessions }}</td></tr>
+    <tr><td class="t"><strong>Sign-in, invitation and security records</strong></td><td class="j">{{ found.audit }} log entries, {{ found.invites }} invitation or link records</td></tr>
+    <tr><td class="t"><strong>Approved-address entry and access requests</strong></td><td class="j">{{ found.approved }} and {{ found.requests }}</td></tr>
+    <tr><td class="t"><strong>Accepted-terms records</strong></td><td class="j">{{ found.terms_kept }} (kept, as proof of what was agreed)</td></tr>
+  </table></div>
+
+  {% if found.user and found.user.is_super %}
+  <div class="callout warn"><p>This is the installation owner's account. It cannot be deleted here.</p></div>
+  {% else %}
+    {% if found.memberships and found.memberships|selectattr('role', 'equalto', 'admin')|list %}
+    <div class="callout warn"><p>This person is an administrator of {{ found.memberships|selectattr('role', 'equalto', 'admin')|map(attribute='folder')|join(', ') }}. Check that the organization has another administrator, or that you are happy to manage it yourself.</p></div>
+    {% endif %}
+  <form method="post" action="/admin/erase" class="web-row end" onsubmit="return confirm('Delete everything listed above for {{ found.email|e }}? This cannot be undone.')">
+    <input type="hidden" name="email" value="{{ found.email }}">
+    <div class="g2"><label class="lab" for="confirm">Type their email address to confirm</label><input type="text" id="confirm" name="confirm" autocomplete="off" required></div>
+    <button class="btn small danger" type="submit">Delete everything listed above</button>
+  </form>
+  <p class="secnote">Backups still contain this information until they are replaced, which the Privacy Notice states. Papers an organization uploaded are not deleted. Anything an administrator already downloaded cannot be recalled.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="sec last">
+  <h2>Recent deletions</h2>
+  {% if not recent %}<p class="plain">None yet.</p>{% endif %}
+  <div class="tablewrap"><table class="banktable">
+    {% for r in recent %}<tr><td class="t">{{ r.at.strftime('%b %d, %Y %H:%M') }} UTC</td><td class="j">{{ r.what }}</td></tr>{% endfor %}
+  </table></div>
+  <p class="secnote">Only counts are recorded, never the person's email address or anything that was deleted.</p>
+</section>
+{% endblock %}

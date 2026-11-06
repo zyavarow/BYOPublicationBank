@@ -1,5 +1,5 @@
   <div class="sumgrid sum4">
-    <div class="sumbox"><div class="lab">Questions</div><div class="big2">{{ summary.questions }}</div><div class="hint">{{ periods[days]|lower }}</div></div>
+    <div class="sumbox"><div class="lab">Questions</div><div class="big2">{{ summary.questions }}</div><div class="hint">{{ periods[days]|lower }}{% if summary.helpful or summary.not_helpful %} · {{ summary.helpful }} rated helpful, {{ summary.not_helpful }} not helpful{% endif %}</div></div>
     <div class="sumbox"><div class="lab">People who asked</div><div class="big2">{{ summary.people }}</div><div class="hint">of {{ member_count }} with access</div></div>
     <div class="sumbox"><div class="lab">Spent on questions</div><div class="big2">{{ money(summary.spend) }}</div><div class="hint">{{ cap_note }}</div></div>
     <div class="sumbox"><div class="lab">Low-confidence answers</div><div class="big2">{{ summary.low }}</div><div class="hint">{% if summary.questions %}{{ summary.gaps }} had parts the library did not cover{% else %}no questions yet{% endif %}</div></div>

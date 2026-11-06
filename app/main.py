@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool  # noqa: E402
 
 from app import access, auth_routes, signup_routes, terms_routes  # noqa: E402
 from app.colors import guide_colors, logo_colors, pull_colors  # noqa: E402
-from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, mailer, migrations, quotes, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
+from pubbank import adminlog, allowlist, apikey, ask as asker, auth, bundle, feedback, mailer, migrations, quotes, registry, bank, batch_run, index as search_index, orgs, overlay_edit, pdfs, review, samples, schema_ai, schema_edit, search, sources, terms, topic  # noqa: E402
 from pubbank.db import connect  # noqa: E402
 
 LINK_KEY = re.compile(r"^(/(?:invite|signin)/)[^/?\s]+")
@@ -856,6 +856,8 @@ def job_status(request: Request, folder: str, job_id: str):
         return JSONResponse({"error": "Unknown job"}, status_code=404)
     if job["kind"] != "ask" and not auth.allows(request.state.user, folder, "admin"):
         return JSONResponse({"error": "You do not have access to this."}, status_code=403)      # members may follow their own questions, nothing else
+    if job["kind"] == "ask" and job.get("user_id") != request.state.user["id"] and not auth.allows(request.state.user, folder, "admin"):
+        return JSONResponse({"error": "Unknown job"}, status_code=404)      # another member's question is not visible
     out = {k: job[k] for k in ("stage", "done", "total", "finished", "error", "result", "label", "hint")}
     out["elapsed"] = round(time.time() - job["started"])
     out["stage_elapsed"] = round(time.time() - job.get("stage_started", job["started"]))
@@ -1314,6 +1316,7 @@ def workspace_ask(request: Request, folder: str, question: str = Form(""), role:
         if sources.busy(oid):
             return JSONResponse({"error": "Another question is still being answered. Wait for it to finish."}, status_code=409)
     jid = sources.new_job("ask", question[:80], oid, {"quick": "about 15 seconds", "standard": "about 30 seconds", "deep": "about 1 to 2 minutes"}[depth])
+    sources._set(jid, user_id=user_id)          # a question's progress and answer can be followed only by the person who asked (and administrators)
     disease = topic_disease(org)
     cap = float(org.get("daily_cap") or 5)
 
@@ -1392,7 +1395,28 @@ def workspace_answer(request: Request, folder: str, ask_id: int):
     for s in saved or []:               # answers saved before the quote cap keep long passages in the log; show only an excerpt
         for p in s.get("passages", []):
             p["text"] = quotes.excerpt(p.get("text", ""))
-    return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": saved}
+    with connect() as conn:
+        given = feedback.mine(conn, r[0]) if r[4] == user["id"] else None
+    return {"kind": "ask", "id": r[0], "question": r[1], "answer": r[2], "sources": saved, "feedback": given, "mine": r[4] == user["id"]}
+
+
+@app.post("/org/{folder}/workspace/feedback/{ask_id}")
+def workspace_feedback(request: Request, folder: str, ask_id: int, rating: str = Form(""), comment: str = Form("")):
+    """The person who asked rates their answer (helpful or not) and may add a comment. Administrators read it in the question log."""
+    org = _org_or_404(folder)
+    if org is None:
+        return JSONResponse({"error": "Unknown organization"}, status_code=404)
+    user = request.state.user
+    with connect() as conn:
+        oid = _org_id(conn, org)
+        r = conn.execute("SELECT user_id FROM ask_log WHERE id = %s AND org_id = %s", (ask_id, oid)).fetchone()
+        if not r or r[0] != user["id"]:
+            return JSONResponse({"error": "Not found"}, status_code=404)      # only the person who asked can rate an answer
+        try:
+            feedback.save(conn, oid, ask_id, user["id"], rating, comment)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+    return {"ok": True}
 
 
 @app.post("/org/{folder}/index/build")

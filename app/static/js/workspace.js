@@ -108,6 +108,7 @@
     for (const p of a.paragraphs) body.appendChild(cited(p.text));
     box.appendChild(body);
     box.appendChild(el("p", "basis", [a.confidence_reason, a.confidence_basis].filter(Boolean).join(" ")));
+    if (r.id && r.mine !== false) box.appendChild(feedbackBox(r));
     box.appendChild(el("p", "betanote", `AI-generated summary of papers in ${$("wsRoot").dataset.orgname}'s publication bank. For research use only, not medical advice. Please verify against the cited sources.`));
     if (a.not_covered && a.not_covered.length) {
       const c = el("section", "callout notcov");
@@ -120,6 +121,41 @@
       const ul = el("ul"); a.disagreements.forEach((x) => ul.appendChild(cited(x, "li"))); c.appendChild(ul); box.appendChild(c);
     }
     renderSources(box, r.sources);
+  }
+  // "Was this answer helpful?": a rating and an optional comment, kept with the question for the organization's administrators
+  function feedbackBox(r) {
+    const wrap = el("section", "fbbox");
+    const row = el("div", "fbrow");
+    row.appendChild(el("span", "lab2", "Was this answer helpful?"));
+    const up = el("button", "btn small line", "Helpful"), down = el("button", "btn small line", "Not helpful");
+    up.type = down.type = "button";
+    const more = el("div", "fbmore");
+    const ta = el("textarea"); ta.rows = 2; ta.maxLength = 1000; ta.setAttribute("aria-label", "Comment (optional)");
+    ta.placeholder = "Anything to add? (optional) Please don't include identifiable health information.";
+    const send = el("button", "btn small", "Send feedback"); send.type = "button";
+    const note = el("span", "filenote", "");
+    let rating = "";
+    const pick = (v) => {
+      rating = v; more.hidden = false;
+      for (const [b, k] of [[up, "up"], [down, "down"]]) { b.classList.toggle("on", k === v); b.setAttribute("aria-pressed", String(k === v)); }
+    };
+    up.addEventListener("click", () => pick("up")); down.addEventListener("click", () => pick("down"));
+    send.addEventListener("click", async () => {
+      if (!rating) return;
+      send.disabled = true; note.textContent = "Sending…";
+      try {
+        const res = await fetch(`/org/${folder}/workspace/feedback/${r.id}`, { method: "POST", body: new URLSearchParams({ rating, comment: ta.value }) });
+        const d = await res.json();
+        note.textContent = res.ok ? "Thank you. Your feedback was saved." : (d.error || "Could not save that.");
+      } catch (e) { note.textContent = "Could not save that."; }
+      send.disabled = false;
+    });
+    more.hidden = true;
+    more.append(ta, send, note);
+    row.append(up, down);
+    wrap.append(row, more);
+    if (r.feedback) { pick(r.feedback.rating); ta.value = r.feedback.comment || ""; note.textContent = "You rated this answer. You can change it."; }
+    return wrap;
   }
   // "How is this calculated?": the points behind the evidence percent, and why it was held back if it was
   function howScore(a) {
